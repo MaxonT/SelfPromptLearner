@@ -1,0 +1,259 @@
+You are a senior full-stack engineer + product designer. Build a production-ready MVP called:
+
+Self-Prompt Reflection (SPR)
+
+It is a browser extension (Chrome MV3) that automatically captures and saves the user’s prompts from popular AI chat web apps, then runs “full-spectrum analysis” to infer patterns, traits, and provide actionable improvement suggestions.
+
+IMPORTANT:
+- Deliver a working MVP in this Replit workspace with clear structure, runnable commands, and a minimal but polished UI.
+- Default to privacy-first: local-first storage; optional cloud sync behind a toggle.
+- Do NOT use any paid APIs by default. Use local analysis (heuristics + optional local LLM endpoint) and keep an adapter interface for future LLM integration.
+- Provide robust error handling, simple onboarding, and an export feature.
+
+========================
+1) PRODUCT REQUIREMENTS
+========================
+
+1.1 Core User Story
+- As a user, I type prompts into AI chat websites.
+- The extension detects when I submit a prompt.
+- It stores the prompt + metadata (timestamp, site, model if detectable, conversation url, prompt length, tags).
+- Later, I open the extension dashboard and see:
+  (a) prompt timeline
+  (b) search/filter
+  (c) analytics + “trait inference” + “suggested upgrades”
+  (d) prompt quality score and improvement tips
+- I can export my prompt history as JSON/CSV/Markdown.
+
+1.2 Supported Sites (MVP)
+Implement capture for at least:
+- chat.openai.com (ChatGPT)
+- claude.ai (Claude)
+- gemini.google.com (Gemini)
+- perplexity.ai (Perplexity)
+- replit.com (Replit AI chat if possible)
+Additionally, implement a “Generic Capture Mode”:
+- If a site is not supported, allow the user to manually click “Capture last prompt” button that reads the most recent text in the focused textarea, if any.
+
+1.3 Privacy + Safety (Must)
+- Default storage: local (IndexedDB) inside the extension.
+- No data leaves device unless user explicitly toggles “Cloud Sync”.
+- Provide a visible “Recording ON/OFF” toggle in the extension popup.
+- Provide “Pause for this site” and “Incognito disable” (extension should not run in incognito by default).
+- Provide “Delete all data” and “Delete per item”.
+
+1.4 Analytics (“Full Spectrum Analysis”)
+Compute analytics on stored prompts. Implement as deterministic rules + light ML optional.
+Provide:
+A) Prompt taxonomy classification (multi-label):
+- task type: coding / debugging / writing / study / planning / brainstorming / summarization / translation / roleplay / decision / other
+- intent: ask / command / critique / iterate / reflect
+- constraints: formatting constraints present? examples? tests? output style?
+- context richness: low/med/high
+- risk flags: personal data, secrets, harassment, self-harm (just flags, not judgement)
+
+B) Style fingerprint:
+- verbosity (short/med/long)
+- directness (question vs imperative)
+- structure usage (lists, headings, step-by-step, spec-like)
+- tone signals (polite, neutral, intense)
+- iteration behavior (how often user re-prompts same topic within 30 min, edits, adds constraints)
+
+C) Quality signals:
+- clarity score (0-100): presence of goal + constraints + examples + definition of done
+- ambiguity score (0-100): vague words count (“something”, “better”, “nice”, etc)
+- reproducibility score (0-100): presence of tests/checklist/inputs/outputs
+- anti-patterns detection:
+  - “too vague”
+  - “no success criteria”
+  - “missing context”
+  - “overloaded prompt”
+  - “contradictory constraints”
+
+D) Trait inference (lightweight, explainable)
+From the above signals, infer “prompting traits” (NOT psychological diagnosis):
+- preference for structure vs exploration
+- speed vs precision
+- context-minimalist vs context-rich
+- iteration-heavy vs one-shot
+- risk: tends to paste secrets? tends to request disallowed content? etc.
+Each inference must be:
+- explainable (show top 3 evidence signals)
+- adjustable (user can thumbs up/down and it updates weights)
+
+E) Suggestions engine (actionable)
+Generate a weekly “Prompt Upgrade Plan”:
+- 3 habits to adopt
+- 3 anti-patterns to avoid
+- 5 rewrite templates tailored to user’s patterns
+Also provide per-prompt “Rewrite” feature:
+- show 1 improved version using a built-in template engine (no external API)
+- include “Why improved” in 3 bullet points
+
+1.5 UX Screens
+- Extension Popup:
+  - Recording toggle
+  - Site status (supported/paused)
+  - Quick stats: today prompts count
+  - Button: Open Dashboard
+- Dashboard Web UI (extension page or local web app):
+  - Timeline list (search, filters by site/type/date)
+  - Prompt detail view
+  - Analytics page (charts + traits + suggestions)
+  - Settings (privacy, export, cloud sync toggle)
+
+========================
+2) TECH REQUIREMENTS
+========================
+
+2.1 Architecture
+- Chrome Extension MV3:
+  - content scripts for each supported domain
+  - background service worker handles storage + messaging
+  - popup UI (simple)
+  - dashboard UI (can be extension page: chrome-extension://.../dashboard.html)
+- Storage:
+  - IndexedDB via a wrapper (e.g., idb)
+  - Data schema versioning + migration
+- Optional API server (only if needed):
+  - If implementing cloud sync, provide a simple Node/Express server with SQLite/Postgres support, but keep it OFF by default.
+  - For MVP, local-only is sufficient; implement interfaces for future sync.
+
+2.2 Data Model
+PromptRecord:
+- id (uuid)
+- created_at (ISO)
+- site (enum: chatgpt/claude/gemini/perplexity/replit/other)
+- page_url
+- conversation_id (if detected)
+- prompt_text
+- prompt_hash (sha256)
+- meta_json (dict): {model_guess, language, length_chars, length_tokens_est, is_edit, submit_method}
+- tags (string[])
+- analysis_json (dict): taxonomy, scores, flags, traits_evidence, suggestions
+- deleted_at (nullable)
+
+2.3 Capture Logic (Robust)
+For each supported site:
+- Detect the prompt input element.
+- Detect “submit” action:
+  - Enter key press
+  - clicking send button
+- Capture the text right before submit clears it.
+- Debounce / avoid duplicates:
+  - if same prompt_hash occurs within 10 seconds, ignore.
+- Handle UI changes:
+  - Use MutationObserver to re-find input if DOM changes.
+  - Use resilient selectors (aria-label, role, data-testid) rather than brittle classnames.
+
+2.4 Analysis Engine Implementation
+- Run analysis in background worker (service worker) or in dashboard thread with a web worker.
+- No external LLM required.
+- Implement:
+  - regex-based feature extraction
+  - simple classifiers via keyword + rules
+  - readability-ish metrics
+  - token estimate function (rough)
+  - scoring functions with transparent weighting
+- Store analysis results in analysis_json.
+
+2.5 Charts / Visualization
+- Use a lightweight chart library (Chart.js).
+- Display:
+  - prompts per day
+  - distribution by site
+  - distribution by taxonomy task type
+  - average clarity score over time
+
+2.6 Export
+- Export JSON (full records)
+- Export CSV (flatten key fields)
+- Export Markdown summary (weekly report format)
+
+2.7 Testing
+- Provide:
+  - unit tests for analysis engine (Jest/Vitest)
+  - manual test checklist for capture on each site
+- Provide a “Demo Mode” page with a fake chat UI for testing capture without relying on external sites.
+
+========================
+3) DELIVERABLES
+========================
+
+3.1 Project Structure (required)
+/
+  extension/
+    manifest.json
+    background/
+    content/
+      sites/
+      generic/
+    popup/
+    dashboard/
+    assets/
+    shared/
+  server/ (optional; can be stubbed)
+  README.md
+
+3.2 README must include:
+- how to run/build
+- how to load extension in Chrome
+- supported sites list
+- privacy guarantees
+- troubleshooting selectors if site DOM changes
+- roadmap
+
+3.3 Provide a minimal polished UI
+- clean typography
+- spacing
+- light/dark compatible using CSS variables
+
+========================
+4) IMPLEMENTATION PLAN (DO IT)
+========================
+
+Step 0: Initialize repository structure in Replit.
+Step 1: Build MV3 extension skeleton with working popup + dashboard page.
+Step 2: Implement IndexedDB storage wrapper + schema.
+Step 3: Implement background messaging API:
+- content script -> background: savePrompt(payload)
+- dashboard -> background: listPrompts(query), getPrompt(id), deletePrompt(id), export(format), recomputeAnalysis(id/all)
+Step 4: Implement capture for ChatGPT first, then Claude, Gemini, Perplexity. Ensure debounce.
+Step 5: Implement analysis engine:
+- extractFeatures(text)
+- classifyTaxonomy(features)
+- computeScores(features)
+- inferTraits(historyFeatures)
+- generateSuggestions(traits, prompt)
+Step 6: Dashboard UI:
+- Timeline list with search & filters
+- Detail view with analysis and “Rewrite”
+- Analytics page with charts
+- Settings page
+Step 7: Export implementation
+Step 8: Add tests + demo mode + manual checklist.
+
+========================
+5) OUTPUT FORMAT YOU MUST PRODUCE
+========================
+
+In your final response, output:
+
+A) A concise summary of what you built.
+B) Exact commands to run/build.
+C) A file tree.
+D) The full code for all files (or if too long, create them in the workspace and list the key files with content; but since you are Replit agent, you can directly create files).
+E) A manual test checklist for each supported site.
+
+========================
+6) EXTRA: FUTURE-PROOFING (DO NOT SKIP)
+========================
+- Implement “site adapter” interface:
+  - detectInput()
+  - detectSubmit()
+  - readText()
+  - getConversationMeta()
+- Keep each site’s selectors isolated in separate module.
+- Add a fallback “generic adapter” for unknown sites.
+
+Now implement it. Be decisive. Use stable selectors. Make it work. 

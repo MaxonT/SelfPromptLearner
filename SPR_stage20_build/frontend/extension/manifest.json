@@ -1,0 +1,66 @@
+{
+  "manifest_version": 3,
+  "name": "Self-Prompt Reflection (SPR)",
+  "version": "0.18.0",
+  "description": "Capture, analyze, and improve your AI prompts.",
+  "permissions": [
+    "storage",
+    "alarms"
+  ],
+  "host_permissions": [
+    "*://chat.openai.com/*",
+    "*://claude.ai/*",
+    "*://gemini.google.com/*",
+    "*://www.perplexity.ai/*",
+    "*://replit.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_security_policy": {
+    "extension_pages": "default-src 'self'; script-src 'self'; object-src 'none'; connect-src 'self' https://*.onrender.com https://localhost https://127.0.0.1; img-src 'self' data:; style-src 'self' 'unsafe-inline'"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://chat.openai.com/*",
+        "*://claude.ai/*",
+        "*://gemini.google.com/*",
+        "*://www.perplexity.ai/*",
+        "*://replit.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_end"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "SPR"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "dashboard.html"
+      ],
+      "matches": [
+        "*://chat.openai.com/*",
+        "*://claude.ai/*",
+        "*://gemini.google.com/*",
+        "*://www.perplexity.ai/*",
+        "*://replit.com/*"
+      ]
+    }
+  ],
+  "optional_host_permissions": [
+    "https://127.0.0.1/*",
+    "https://localhost/*",
+    "https://*.onrender.com/*"
+  ],
+  "icons": {
+    "16": "assets/icon-16.png",
+    "48": "assets/icon-48.png",
+    "128": "assets/icon-128.png"
+  }
+}

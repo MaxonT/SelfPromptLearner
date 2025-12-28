@@ -3,7 +3,7 @@ services:
     name: spr-fullstack
     env: node
     plan: free
-    buildCommand: cd SPR_stage20_build && npm config set registry https://registry.npmjs.org/ && npm install && npm run build
+    buildCommand: cd SPR_stage20_build && npm config set registry https://registry.npmjs.org/ && NODE_ENV=development npm install && npm run build
     startCommand: cd SPR_stage20_build && npm run start
     healthCheckPath: /api/health
     envVars:

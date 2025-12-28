@@ -2,9 +2,9 @@ services:
   - type: web
     name: spr-fullstack
     env: node
-    plan: starter
-    buildCommand: npm ci && npm run build
-    startCommand: npm run start
+    plan: free
+    buildCommand: cd SPR_stage20_build && npm config set registry https://registry.npmjs.org/ && NODE_ENV=development npm install && npm run build
+    startCommand: cd SPR_stage20_build && npm run start
     healthCheckPath: /api/health
     envVars:
       - key: NODE_VERSION
@@ -26,4 +26,4 @@ services:
 
 databases:
   - name: spr-db
-    plan: starter
+    plan: free

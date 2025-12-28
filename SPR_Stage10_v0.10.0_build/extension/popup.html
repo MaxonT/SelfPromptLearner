@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { width: 320px; padding: 10px; font-family: sans-serif; }
+    h1 { font-size: 16px; margin-bottom: 10px; }
+    .status { margin-bottom: 10px; font-size: 14px; }
+    button { width: 100%; padding: 8px; cursor: pointer; background: #eee; border: none; border-radius: 4px; }
+    button:hover { background: #ddd; }
+    .dashboard-link { display: block; text-align: center; margin-top: 10px; color: blue; text-decoration: none; font-size: 12px; }
+    .row { display: flex; gap: 8px; align-items: center; margin: 8px 0; }
+    .row input { flex: 1; padding: 6px; }
+    .small { font-size: 12px; opacity: 0.85; }
+    .chip { font-size: 11px; padding: 2px 6px; border-radius: 999px; background: #f0f0f0; }
+    .list { max-height: 160px; overflow: auto; border: 1px solid #eee; border-radius: 6px; padding: 6px; }
+    .item { padding: 6px 0; border-bottom: 1px solid #f3f3f3; }
+    .item:last-child { border-bottom: none; }
+  </style>
+</head>
+<body>
+  <h1>SPR Extension</h1>
+  <div class="status">
+    Recording: <span id="status-text">ON</span>
+    <span id="sync-chip" class="chip" style="float:right;">sync</span>
+  </div>
+  <div class="small">Device: <span id="device-id"></span></div>
+  <div class="small">Last sync: <span id="last-sync"></span></div>
+  <div class="small" id="last-sync-error" style="display:none; color:#b00;"></div>
+  <button id="toggle-btn">Pause Recording</button>
+
+  <div class="row">
+    <input id="server-url" placeholder="Server URL (e.g. http://localhost:5000)" />
+  </div>
+  <div class="row">
+    <label class="small"><input type="checkbox" id="auto-sync" /> Auto sync</label>
+    <button id="sync-now" style="width:auto; padding:6px 10px;">Sync now</button>
+  </div>
+
+  <div class="small">Recent captures</div>
+  <div id="recent" class="list"></div>
+
+  <a id="open-dashboard" href="http://localhost:5000" target="_blank" class="dashboard-link">Open Dashboard</a>
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -2,7 +2,7 @@ services:
   - type: web
     name: spr-fullstack
     env: node
-    plan: starter
+    plan: free
     rootDir: SPR_stage20_build
     buildCommand: npm ci && npm run build
     startCommand: npm run start
@@ -27,4 +27,4 @@ services:
 
 databases:
   - name: spr-db
-    plan: starter
+    plan: free

@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:16
+    container_name: spr-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: spr
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-spr_local}
+      POSTGRES_DB: spr
+    ports:
+      - "5432:5432"
+    volumes:
+      - spr_pgdata:/var/lib/postgresql/data
+
+volumes:
+  spr_pgdata:

@@ -3,7 +3,6 @@ services:
     name: spr-fullstack
     env: node
     plan: free
-    rootDir: SPR_stage20_build
     buildCommand: cd SPR_stage20_build && npm install && npm run build
     startCommand: cd SPR_stage20_build && npm run start
     healthCheckPath: /api/health

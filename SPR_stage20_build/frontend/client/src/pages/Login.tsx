@@ -104,11 +104,16 @@ export default function Login() {
       for (let i = 0; i < maxRetries; i++) {
         await new Promise(resolve => setTimeout(resolve, 300));
         try {
-          await queryClient.refetchQueries({ queryKey: ["me"] });
-          const data = queryClient.getQueryData(["me"]);
-          if (data && data !== null) {
-            authenticated = true;
-            break;
+          // Directly fetch to verify session is established
+          const res = await fetch(api.auth.me.path, { credentials: "include" });
+          if (res.ok) {
+            const data = await res.json();
+            if (data && data.email) {
+              authenticated = true;
+              // Update the query cache with the fresh data
+              queryClient.setQueryData(["me"], data);
+              break;
+            }
           }
         } catch (e) {
           // Continue retrying

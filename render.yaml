@@ -4,7 +4,7 @@ services:
     env: node
     plan: free
     rootDir: SPR_stage20_build
-    buildCommand: rm -f .npmrc && echo "registry=https://registry.npmjs.org/" > .npmrc && NODE_ENV=development npm install && npm run build
+    buildCommand: NODE_ENV=development npm install --registry=https://registry.npmjs.org/ && npm run build
     startCommand: npm run start
     healthCheckPath: /api/health
     envVars:

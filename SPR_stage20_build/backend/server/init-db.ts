@@ -115,6 +115,20 @@ export async function initDatabase(): Promise<void> {
       CREATE INDEX IF NOT EXISTS ext_cmd_user_device_idx ON extension_commands(user_id, device_id);
     `);
 
+    // 创建 user_sessions 表（用于 connect-pg-simple）
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS user_sessions (
+        sid VARCHAR NOT NULL COLLATE "default",
+        sess JSON NOT NULL,
+        expire TIMESTAMP(6) NOT NULL,
+        CONSTRAINT user_sessions_pkey PRIMARY KEY (sid)
+      );
+    `);
+    
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS IDX_user_sessions_expire ON user_sessions(expire);
+    `);
+
     console.log("数据库表初始化完成！");
   } catch (err: any) {
     // 如果表已存在或其他错误，记录但不抛出

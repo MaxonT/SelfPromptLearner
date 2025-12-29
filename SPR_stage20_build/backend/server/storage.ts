@@ -90,12 +90,14 @@ export class DatabaseStorage implements IStorage {
     const limit = Math.min(Math.max(params?.limit ?? 24, 1), 200);
     const offset = Math.max(params?.offset ?? 0, 0);
 
-    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+    const baseConditions = [eq(prompts.userId, userId), sql`${prompts.deletedAt} IS NULL`];
+    const allConditions = conditions.length > 0 ? [...baseConditions, ...conditions] : baseConditions;
+    const whereClause = and(...allConditions);
 
     const [{ count }] = await db
       .select({ count: sql<number>`count(*)` })
-      .from(prompts).where(and(eq(prompts.userId, userId), sql`${prompts.deletedAt} IS NULL`))
-      .where(whereClause as any);
+      .from(prompts)
+      .where(whereClause);
 
     const orderBy = params?.sortBy === 'clarity'
       ? desc(sql<number>`COALESCE((${prompts.analysis}->'scores'->>'clarity')::numeric, 0)`)
@@ -104,7 +106,7 @@ export class DatabaseStorage implements IStorage {
     const items = await db
       .select()
       .from(prompts)
-      .where(whereClause as any)
+      .where(whereClause)
       .orderBy(orderBy)
       .limit(limit)
       .offset(offset);
@@ -135,11 +137,13 @@ export class DatabaseStorage implements IStorage {
       return inserted[0];
     }
 
+    const deviceId = prompt.deviceId || 'unknown';
+    const clientEventId = prompt.clientEventId || '';
     const [existing] = await db.select()
       .from(prompts)
       .where(and(
-        eq(prompts.deviceId, prompt.deviceId),
-        eq(prompts.clientEventId, prompt.clientEventId || ''),
+        eq(prompts.deviceId, deviceId),
+        eq(prompts.clientEventId, clientEventId),
         eq(prompts.userId, userId),
       ));
 

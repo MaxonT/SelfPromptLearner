@@ -1,4 +1,5 @@
 import { pool } from "./db";
+import { log } from "./index";
 
 /**
  * 自动初始化数据库表（如果不存在）
@@ -17,11 +18,11 @@ export async function initDatabase(): Promise<void> {
 
     const exists = result.rows[0]?.exists;
     if (exists) {
-      console.log("数据库表已存在，跳过初始化");
+      log("数据库表已存在，跳过初始化", "init-db");
       return;
     }
 
-    console.log("开始初始化数据库表...");
+    log("开始初始化数据库表...", "init-db");
 
     // 创建 users 表
     await pool.query(`
@@ -129,14 +130,14 @@ export async function initDatabase(): Promise<void> {
       CREATE INDEX IF NOT EXISTS IDX_user_sessions_expire ON user_sessions(expire);
     `);
 
-    console.log("数据库表初始化完成！");
+    log("数据库表初始化完成！", "init-db");
   } catch (err: any) {
     // 如果表已存在或其他错误，记录但不抛出
     if (err?.code === '42P07' || err?.message?.includes('already exists')) {
-      console.log("数据库表已存在，跳过初始化");
+      log("数据库表已存在，跳过初始化", "init-db");
       return;
     }
-    console.error("数据库初始化错误:", err);
+    log(`数据库初始化错误: ${err?.message || String(err)}`, "init-db");
     // 不抛出错误，让应用继续启动（表可能已经存在）
   }
 }

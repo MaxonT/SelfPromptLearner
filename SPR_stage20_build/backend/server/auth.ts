@@ -6,6 +6,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { storage } from "./storage";
 import { pool } from "./db";
 import connectPgSimple from "connect-pg-simple";
+import { log } from "./index";
 
 const SESSION_SECRET = (() => {
   if (process.env.SESSION_SECRET) return process.env.SESSION_SECRET;
@@ -57,13 +58,13 @@ export function setupAuth(app: Express) {
         tableName: "user_sessions",
         createTableIfMissing: false, // 我们已经在 init-db.ts 中创建了表
       });
-      console.log("Using PostgreSQL session store");
-    } catch (err) {
-      console.error("Failed to setup PostgreSQL session store, falling back to MemoryStore:", err);
+      log("Using PostgreSQL session store", "auth");
+    } catch (err: any) {
+      log(`Failed to setup PostgreSQL session store, falling back to MemoryStore: ${err?.message || String(err)}`, "auth");
       // 如果设置失败，继续使用默认的 MemoryStore（会有警告，但不影响功能）
     }
   } else {
-    console.log("Using MemoryStore for sessions (development mode)");
+    log("Using MemoryStore for sessions (development mode)", "auth");
   }
   
   app.use(session(sessionConfig));
@@ -103,9 +104,7 @@ export function getUserIdFromRequest(req: Request): string | null {
     const token = auth.slice(7).trim();
     if (token) return token; // treated as apiToken; resolved later
   }
-  // @ts-ignore
   if (req.isAuthenticated && req.isAuthenticated()) {
-    // @ts-ignore
     return req.user?.id ?? null;
   }
   return null;
@@ -113,7 +112,6 @@ export function getUserIdFromRequest(req: Request): string | null {
 
 export async function requireUser(req: Request, res: Response, next: NextFunction) {
   // Session user
-  // @ts-ignore
   if (req.isAuthenticated && req.isAuthenticated() && req.user?.id) return next();
 
   // Bearer token user
@@ -121,12 +119,11 @@ export async function requireUser(req: Request, res: Response, next: NextFunctio
   if (auth.toLowerCase().startsWith("bearer ")) {
     const token = auth.slice(7).trim();
     const u = await storage.getUserByToken(token);
-    if (!u) return res.status(401).json({ code: "UNAUTHORIZED", message: "Invalid token", requestId: (req as any).requestId });
+    if (!u) return res.status(401).json({ code: "UNAUTHORIZED", message: "Invalid token", requestId: req.requestId });
     // attach user
-    // @ts-ignore
     req.user = { id: u.id };
     return next();
   }
 
-  return res.status(401).json({ code: "UNAUTHORIZED", message: "Unauthorized", requestId: (req as any).requestId });
+  return res.status(401).json({ code: "UNAUTHORIZED", message: "Unauthorized", requestId: req.requestId });
 }

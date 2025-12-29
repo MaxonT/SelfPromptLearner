@@ -1,10 +1,17 @@
-import type { Express } from "express";
+import type { Express, Request, Response } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
 import { api } from "../shared/routes";
 import { z } from "zod";
 import passport from "passport";
 import { hashPassword, newApiToken, requireUser } from "./auth";
+import { log } from "./index";
+
+// Helper function to send standardized error responses
+function sendError(res: Response, req: Request, statusCode: number, code: string, message: string) {
+  const requestId = req.requestId || "unknown";
+  return res.status(statusCode).json({ code, message, requestId });
+}
 
 export async function registerRoutes(
   httpServer: Server,
@@ -52,7 +59,9 @@ export async function registerRoutes(
     try {
       const input = api.auth.register.input.parse(req.body);
       const existing = await storage.getUserByEmail(input.email);
-      if (existing) return res.status(400).json({ message: "Email already in use" });
+      if (existing) {
+        return sendError(res, req, 400, "EMAIL_IN_USE", "Email already in use");
+      }
 
       const passwordHash = hashPassword(input.password);
       const apiToken = newApiToken();
@@ -60,10 +69,9 @@ export async function registerRoutes(
 
       // establish session
       await new Promise<void>((resolve, reject) => {
-        // @ts-ignore
         req.login({ id: user.id }, (err) => {
           if (err) {
-            console.error("Session login error during register:", err);
+            log(`Session login error during register: ${err.message}`, "auth");
             return reject(err);
           }
           resolve();
@@ -72,16 +80,12 @@ export async function registerRoutes(
 
       return res.status(201).json({ ok: true, apiToken: user.apiToken, email: user.email });
     } catch (err: any) {
-      console.error("Register error:", err);
-      if (err.name === "ZodError") {
-        return res.status(400).json({ message: "Invalid input", errors: err.errors });
+      if (err instanceof z.ZodError) {
+        return sendError(res, req, 400, "VALIDATION_ERROR", err.errors[0]?.message || "Invalid input");
       }
-      // 确保返回JSON格式的错误
+      log(`Register error: ${err?.message || String(err)}`, "auth");
       const statusCode = err.statusCode || 500;
-      return res.status(statusCode).json({ 
-        message: err.message || "Internal server error",
-        code: err.code || "INTERNAL_ERROR"
-      });
+      return sendError(res, req, statusCode, err.code || "INTERNAL_ERROR", err.message || "Internal server error");
     }
   });
 
@@ -94,199 +98,258 @@ export async function registerRoutes(
 
       passport.authenticate("local", async (err: any, user: any) => {
         if (err) {
-          console.error("Login passport error:", err);
-          return res.status(500).json({ 
-            message: err.message || "Authentication failed",
-            code: "AUTH_ERROR"
-          });
+          log(`Login passport error: ${err.message || String(err)}`, "auth");
+          return sendError(res, req, 500, "AUTH_ERROR", err.message || "Authentication failed");
         }
-        if (!user) return res.status(401).json({ message: "Invalid credentials" });
+        if (!user) {
+          return sendError(res, req, 401, "INVALID_CREDENTIALS", "Invalid credentials");
+        }
 
-        // @ts-ignore
         req.login(user, async (err2) => {
           if (err2) {
-            console.error("Login session error:", err2);
-            return res.status(500).json({ 
-              message: err2.message || "Session creation failed",
-              code: "SESSION_ERROR"
-            });
+            log(`Login session error: ${err2.message || String(err2)}`, "auth");
+            return sendError(res, req, 500, "SESSION_ERROR", err2.message || "Session creation failed");
           }
           try {
             const full = await storage.getUserByEmail(input.email);
             return res.json({ ok: true, apiToken: full?.apiToken ?? "", email: input.email });
           } catch (dbErr: any) {
-            console.error("Login database error:", dbErr);
-            return res.status(500).json({ 
-              message: dbErr.message || "Database error",
-              code: "DB_ERROR"
-            });
+            log(`Login database error: ${dbErr.message || String(dbErr)}`, "auth");
+            return sendError(res, req, 500, "DB_ERROR", dbErr.message || "Database error");
           }
         });
       })(req, res, next);
     } catch (err: any) {
-      console.error("Login parse error:", err);
-      if (err.name === "ZodError") {
-        return res.status(400).json({ message: "Invalid input", errors: err.errors });
+      if (err instanceof z.ZodError) {
+        return sendError(res, req, 400, "VALIDATION_ERROR", err.errors[0]?.message || "Invalid input");
       }
-      return res.status(500).json({ 
-        message: err.message || "Internal server error",
-        code: "PARSE_ERROR"
-      });
+      log(`Login parse error: ${err?.message || String(err)}`, "auth");
+      return sendError(res, req, 500, "PARSE_ERROR", err.message || "Internal server error");
     }
   });
 
   // Auth: Logout
   app.post(api.auth.logout.path, (req, res) => {
-    // @ts-ignore
-    req.logout?.(() => {});
-    // @ts-ignore
-    req.session?.destroy?.(() => {});
-    res.json({ ok: true });
+    try {
+      req.logout?.(() => {});
+      req.session?.destroy?.(() => {});
+      res.json({ ok: true });
+    } catch (err: any) {
+      log(`Logout error: ${err?.message || String(err)}`, "auth");
+      sendError(res, req, 500, "LOGOUT_ERROR", "Failed to logout");
+    }
   });
 
     // Auth: Me
   app.get(api.auth.me.path, requireUser, async (req, res) => {
-    const userId = (req as any).user.id as string;
-    const u = await storage.getUserById(userId);
-    res.json({ ok: true, email: u?.email ?? "", apiToken: u?.apiToken ?? "" });
+    try {
+      const userId = req.user!.id;
+      const u = await storage.getUserById(userId);
+      if (!u) {
+        return sendError(res, req, 404, "USER_NOT_FOUND", "User not found");
+      }
+      res.json({ ok: true, email: u.email, apiToken: u.apiToken });
+    } catch (err: any) {
+      log(`Get user error: ${err?.message || String(err)}`, "auth");
+      sendError(res, req, 500, "DB_ERROR", "Failed to fetch user");
+    }
   });
 
 // Auth: Rotate Token
   app.post(api.auth.rotateToken.path, requireUser, async (req, res) => {
-    const userId = (req as any).user.id as string;
-    const token = newApiToken();
-    const apiToken = await storage.rotateUserToken(userId, token);
-    res.json({ ok: true, apiToken });
+    try {
+      const userId = req.user!.id;
+      const token = newApiToken();
+      const apiToken = await storage.rotateUserToken(userId, token);
+      res.json({ ok: true, apiToken });
+    } catch (err: any) {
+      log(`Rotate token error: ${err?.message || String(err)}`, "auth");
+      sendError(res, req, 500, "TOKEN_ROTATE_ERROR", "Failed to rotate token");
+    }
   });
 
   // Account: Export JSON (streaming)
   app.get(api.account.status.path, requireUser, async (req, res) => {
-    const userId = (req as any).user.id as string;
-    const status = await storage.getAccountStatus(userId);
-    res.json({ ok: true, totalPrompts: status.totalPrompts, lastIngestAt: status.lastIngestAt });
+    try {
+      const userId = req.user!.id;
+      const status = await storage.getAccountStatus(userId);
+      res.json({ ok: true, totalPrompts: status.totalPrompts, lastIngestAt: status.lastIngestAt });
+    } catch (err: any) {
+      log(`Get account status error: ${err?.message || String(err)}`, "account");
+      sendError(res, req, 500, "DB_ERROR", "Failed to fetch account status");
+    }
   });
 
 app.get(api.account.exportJson.path, requireUser, async (req, res) => {
-  const userId = (req as any).user.id as string;
-  res.setHeader("Content-Type", "application/json; charset=utf-8");
-  res.setHeader("Content-Disposition", 'attachment; filename="spr-prompts.json"');
+  try {
+    const userId = req.user!.id;
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Content-Disposition", 'attachment; filename="spr-prompts.json"');
 
-  const limit = 1000;
-  let offset = 0;
-  let first = true;
+    const limit = 1000;
+    let offset = 0;
+    let first = true;
 
-  res.write('{"exportedAt":"' + new Date().toISOString() + '","prompts":[');
-  while (true) {
-    const batch = await storage.getPrompts(userId, { limit, offset, sortBy: "date" });
-    if (!batch.items.length) break;
-    for (const p of batch.items) {
-      const row = JSON.stringify(p);
-      if (first) { res.write(row); first = false; }
-      else { res.write("," + row); }
+    res.write('{"exportedAt":"' + new Date().toISOString() + '","prompts":[');
+    while (true) {
+      const batch = await storage.getPrompts(userId, { limit, offset, sortBy: "date" });
+      if (!batch.items.length) break;
+      for (const p of batch.items) {
+        const row = JSON.stringify(p);
+        if (first) { res.write(row); first = false; }
+        else { res.write("," + row); }
+      }
+      offset += batch.items.length;
+      if (batch.items.length < limit) break;
     }
-    offset += batch.items.length;
-    if (batch.items.length < limit) break;
+    res.write("]}");
+    res.end();
+  } catch (err: any) {
+    log(`Export JSON error: ${err?.message || String(err)}`, "account");
+    if (!res.headersSent) {
+      sendError(res, req, 500, "EXPORT_ERROR", "Failed to export data");
+    }
   }
-  res.write("]}");
-  res.end();
 });
 
   // Account: Export CSV (streaming)
 app.get(api.account.exportCsv.path, requireUser, async (req, res) => {
-  const userId = (req as any).user.id as string;
-  res.setHeader("Content-Type", "text/csv; charset=utf-8");
-  res.setHeader("Content-Disposition", 'attachment; filename="spr-prompts.csv"');
+  try {
+    const userId = req.user!.id;
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", 'attachment; filename="spr-prompts.csv"');
 
-  const header = ["id","createdAt","site","pageUrl","conversationId","promptText","deviceId","clientEventId","promptHash","taskType","intent","riskFlag","tags"].join(",") + "\n";
-  res.write(header);
+    const header = ["id","createdAt","site","pageUrl","conversationId","promptText","deviceId","clientEventId","promptHash","taskType","intent","riskFlag","tags"].join(",") + "\n";
+    res.write(header);
 
-  const esc = (s: any) => {
-    const v = (s ?? "").toString().replace(/"/g, '""');
-    return '"' + v + '"';
-  };
+    const esc = (s: any) => {
+      const v = (s ?? "").toString().replace(/"/g, '""');
+      return '"' + v + '"';
+    };
 
-  const limit = 1000;
-  let offset = 0;
-  while (true) {
-    const batch = await storage.getPrompts(userId, { limit, offset, sortBy: "date" });
-    if (!batch.items.length) break;
+    const limit = 1000;
+    let offset = 0;
+    while (true) {
+      const batch = await storage.getPrompts(userId, { limit, offset, sortBy: "date" });
+      if (!batch.items.length) break;
 
-    for (const p of batch.items) {
-      const tags = Array.isArray((p as any).tags) ? (p as any).tags.join("|") : "";
-      const line = [
-        esc((p as any).id),
-        esc((p as any).createdAt),
-        esc((p as any).site),
-        esc((p as any).pageUrl),
-        esc((p as any).conversationId),
-        esc((p as any).promptText),
-        esc((p as any).deviceId),
-        esc((p as any).clientEventId),
-        esc((p as any).promptHash),
-        esc((p as any).taskType),
-        esc((p as any).intent),
-        esc((p as any).riskFlag),
-        esc(tags),
-      ].join(",") + "\n";
-      res.write(line);
+      for (const p of batch.items) {
+        const tags = Array.isArray(p.tags) ? p.tags.join("|") : "";
+        const analysis = p.analysis as { taxonomy?: { taskType?: string[]; intent?: string[]; riskFlags?: string[] } } | null | undefined;
+        const taskType = analysis?.taxonomy?.taskType?.join("|") || "";
+        const intent = analysis?.taxonomy?.intent?.join("|") || "";
+        const riskFlag = analysis?.taxonomy?.riskFlags?.join("|") || "";
+        const line = [
+          esc(p.id),
+          esc(p.createdAt?.toISOString() || ""),
+          esc(p.site),
+          esc(p.pageUrl),
+          esc(p.conversationId || ""),
+          esc(p.promptText),
+          esc(p.deviceId),
+          esc(p.clientEventId),
+          esc(p.promptHash),
+          esc(taskType),
+          esc(intent),
+          esc(riskFlag),
+          esc(tags),
+        ].join(",") + "\n";
+        res.write(line);
+      }
+
+      offset += batch.items.length;
+      if (batch.items.length < limit) break;
     }
-
-    offset += batch.items.length;
-    if (batch.items.length < limit) break;
+    res.end();
+  } catch (err: any) {
+    log(`Export CSV error: ${err?.message || String(err)}`, "account");
+    if (!res.headersSent) {
+      sendError(res, req, 500, "EXPORT_ERROR", "Failed to export data");
+    }
   }
-  res.end();
 });
 
   // Account: Delete All
   app.post(api.account.deleteAll.path, requireUser, async (req, res) => {
-    const userId = (req as any).user.id as string;
-    await storage.deleteAllUserData(userId);
-    // @ts-ignore
-    req.logout?.(() => {});
-    // @ts-ignore
-    req.session?.destroy?.(() => {});
-    res.json({ ok: true });
+    try {
+      const userId = req.user!.id;
+      await storage.deleteAllUserData(userId);
+      req.logout?.(() => {});
+      req.session?.destroy?.(() => {});
+      res.json({ ok: true });
+    } catch (err: any) {
+      log(`Delete all data error: ${err?.message || String(err)}`, "account");
+      sendError(res, req, 500, "DELETE_ERROR", "Failed to delete data");
+    }
   });
 
   // Extension: Status upsert (token or session)
   app.post('/api/extension/status', requireUser, async (req, res) => {
-    const userId = (req as any).user.id as string;
-    const input = z.object({
-      deviceId: z.string().min(1),
-      pending: z.number().int().nonnegative(),
-      failed: z.number().int().nonnegative(),
-      sending: z.number().int().nonnegative(),
-      lastRequestId: z.string().nullable().optional(),
-      lastSyncAt: z.string().nullable().optional(),
-      lastSyncError: z.string().nullable().optional(),
-    }).parse(req.body);
+    try {
+      const userId = req.user!.id;
+      const input = z.object({
+        deviceId: z.string().min(1),
+        pending: z.number().int().nonnegative(),
+        failed: z.number().int().nonnegative(),
+        sending: z.number().int().nonnegative(),
+        lastRequestId: z.string().nullable().optional(),
+        lastSyncAt: z.string().nullable().optional(),
+        lastSyncError: z.string().nullable().optional(),
+      }).parse(req.body);
 
-    await storage.upsertExtensionStatus(userId, input);
-    res.json({ ok: true });
+      await storage.upsertExtensionStatus(userId, input);
+      res.json({ ok: true });
+    } catch (err: any) {
+      if (err instanceof z.ZodError) {
+        return sendError(res, req, 400, "VALIDATION_ERROR", err.errors[0]?.message || "Invalid input");
+      }
+      log(`Extension status upsert error: ${err?.message || String(err)}`, "extension");
+      sendError(res, req, 500, "DB_ERROR", "Failed to update extension status");
+    }
   });
 
   // Extension: Status query (dashboard)
   app.get(api.extension.statusGet.path, requireUser, async (req, res) => {
-    const userId = (req as any).user.id as string;
-    const devices = await storage.getExtensionStatus(userId);
-    res.json({ ok: true, devices });
+    try {
+      const userId = req.user!.id;
+      const devices = await storage.getExtensionStatus(userId);
+      res.json({ ok: true, devices });
+    } catch (err: any) {
+      log(`Extension status get error: ${err?.message || String(err)}`, "extension");
+      sendError(res, req, 500, "DB_ERROR", "Failed to fetch extension status");
+    }
   });
 
   // Extension: request retry (dashboard)
   app.post(api.extension.retryFailed.path, requireUser, async (req, res) => {
-    const userId = (req as any).user.id as string;
-    const input = (api.extension.retryFailed.input ?? z.object({ deviceId: z.string().optional() })).parse(req.body ?? {});
-    await storage.enqueueExtensionCommand(userId, 'retry_failed', input.deviceId ?? null, null);
-    res.json({ ok: true });
+    try {
+      const userId = req.user!.id;
+      const input = (api.extension.retryFailed.input ?? z.object({ deviceId: z.string().optional() })).parse(req.body ?? {});
+      await storage.enqueueExtensionCommand(userId, 'retry_failed', input.deviceId ?? null, null);
+      res.json({ ok: true });
+    } catch (err: any) {
+      if (err instanceof z.ZodError) {
+        return sendError(res, req, 400, "VALIDATION_ERROR", err.errors[0]?.message || "Invalid input");
+      }
+      log(`Extension retry error: ${err?.message || String(err)}`, "extension");
+      sendError(res, req, 500, "DB_ERROR", "Failed to enqueue retry command");
+    }
   });
 
   // Extension: poll commands (token recommended)
   app.get('/api/extension/commands', requireUser, async (req, res) => {
-    const userId = (req as any).user.id as string;
-    const deviceId = String((req.query as any)?.deviceId || '');
-    if (!deviceId) return res.status(400).json({ message: 'deviceId required' });
-    const cmds = await storage.consumeExtensionCommands(userId, deviceId);
-    res.json({ ok: true, commands: cmds });
+    try {
+      const userId = req.user!.id;
+      const deviceId = typeof req.query.deviceId === 'string' ? req.query.deviceId : '';
+      if (!deviceId) {
+        return sendError(res, req, 400, "VALIDATION_ERROR", "deviceId required");
+      }
+      const cmds = await storage.consumeExtensionCommands(userId, deviceId);
+      res.json({ ok: true, commands: cmds });
+    } catch (err: any) {
+      log(`Extension commands error: ${err?.message || String(err)}`, "extension");
+      sendError(res, req, 500, "DB_ERROR", "Failed to fetch commands");
+    }
   });
 
   
@@ -294,45 +357,56 @@ app.get(api.account.exportCsv.path, requireUser, async (req, res) => {
   app.get(api.prompts.list.path, requireUser, async (req, res) => {
     try {
       const params = api.prompts.list.input?.parse(req.query);
-      const userId = (req as any).user.id as string;
+      const userId = req.user!.id;
       const result = await storage.getPrompts(userId, params);
       res.json(result);
-    } catch (err) {
-      res.status(500).json({ message: "Failed to fetch prompts" });
+    } catch (err: any) {
+      if (err instanceof z.ZodError) {
+        return sendError(res, req, 400, "VALIDATION_ERROR", err.errors[0]?.message || "Invalid query parameters");
+      }
+      log(`List prompts error: ${err?.message || String(err)}`, "prompts");
+      sendError(res, req, 500, "DB_ERROR", "Failed to fetch prompts");
     }
   });
 
   // List tags
   app.get(api.tags.list.path, requireUser, async (req, res) => {
     try {
-      const userId = (req as any).user.id as string;
+      const userId = req.user!.id;
       const tags = await storage.getTags(userId);
       res.json({ tags });
-    } catch (_err) {
-      res.status(500).json({ message: "Failed to fetch tags" });
+    } catch (err: any) {
+      log(`List tags error: ${err?.message || String(err)}`, "tags");
+      sendError(res, req, 500, "DB_ERROR", "Failed to fetch tags");
     }
   });
 
   // List taxonomy (taskType/intent/riskFlags)
   app.get(api.taxonomy.list.path, requireUser, async (req, res) => {
     try {
-      const userId = (req as any).user.id as string;
-    const data = await storage.getTaxonomy(userId);
+      const userId = req.user!.id;
+      const data = await storage.getTaxonomy(userId);
       res.json(data);
-    } catch (_err) {
-      res.status(500).json({ message: "Failed to fetch taxonomy" });
+    } catch (err: any) {
+      log(`List taxonomy error: ${err?.message || String(err)}`, "taxonomy");
+      sendError(res, req, 500, "DB_ERROR", "Failed to fetch taxonomy");
     }
   });
 
 
   // Get prompt
   app.get(api.prompts.get.path, requireUser, async (req, res) => {
-    const userId = (req as any).user.id as string;
+    try {
+      const userId = req.user!.id;
       const prompt = await storage.getPrompt(userId, req.params.id);
-    if (!prompt) {
-      return res.status(404).json({ message: "Prompt not found" });
+      if (!prompt) {
+        return sendError(res, req, 404, "NOT_FOUND", "Prompt not found");
+      }
+      res.json(prompt);
+    } catch (err: any) {
+      log(`Get prompt error: ${err?.message || String(err)}`, "prompts");
+      sendError(res, req, 500, "DB_ERROR", "Failed to fetch prompt");
     }
-    res.json(prompt);
   });
 
   // Create prompt (Sync from extension)
@@ -342,7 +416,7 @@ app.get(api.account.exportCsv.path, requireUser, async (req, res) => {
   const __ingestHits = new Map<string, { ts: number; count: number }>();
 
   app.post(api.prompts.create.path, requireUser, async (req, res) => {
-    const userId = (req as any).user.id as string;
+    const userId = req.user!.id;
     const now = Date.now();
     const hit = __ingestHits.get(userId);
     if (!hit || now - hit.ts > __ingestWindowMs) {
@@ -350,26 +424,20 @@ app.get(api.account.exportCsv.path, requireUser, async (req, res) => {
     } else {
       hit.count += 1;
       if (hit.count > __ingestMaxPerWindow) {
-        const requestId = (req as any).requestId;
-        return res.status(429).json({ code: "RATE_LIMITED", message: "Too many ingestion requests", requestId });
+        return sendError(res, req, 429, "RATE_LIMITED", "Too many ingestion requests");
       }
     }
 
     try {
       const input = api.prompts.create.input.parse(req.body);
-      const userId = (req as any).user.id as string;
       const prompt = await storage.createPrompt(userId, input);
       res.status(201).json(prompt);
     } catch (err) {
       if (err instanceof z.ZodError) {
-        return res.status(400).json({
-          code: "VALIDATION_ERROR",
-          message: err.errors[0].message,
-          requestId: (req as any).requestId,
-          field: err.errors[0].path.join('.'),
-        });
+        return sendError(res, req, 400, "VALIDATION_ERROR", err.errors[0]?.message || "Invalid input");
       }
-      throw err;
+      log(`Create prompt error: ${err instanceof Error ? err.message : String(err)}`, "prompts");
+      sendError(res, req, 500, "DB_ERROR", "Failed to create prompt");
     }
   });
 
@@ -377,34 +445,40 @@ app.get(api.account.exportCsv.path, requireUser, async (req, res) => {
   app.put(api.prompts.update.path, requireUser, async (req, res) => {
     try {
       const input = api.prompts.update.input.parse(req.body);
-      const userId = (req as any).user.id as string;
+      const userId = req.user!.id;
       const prompt = await storage.updatePrompt(userId, req.params.id, input);
       res.json(prompt);
-    } catch (err) {
+    } catch (err: any) {
       if (err instanceof z.ZodError) {
-        return res.status(400).json({
-          code: "VALIDATION_ERROR",
-          message: err.errors[0].message,
-          requestId: (req as any).requestId,
-          field: err.errors[0].path.join('.'),
-        });
+        return sendError(res, req, 400, "VALIDATION_ERROR", err.errors[0]?.message || "Invalid input");
       }
-      res.status(404).json({ message: "Prompt not found or update failed" });
+      log(`Update prompt error: ${err?.message || String(err)}`, "prompts");
+      sendError(res, req, 404, "NOT_FOUND", "Prompt not found or update failed");
     }
   });
 
   // Delete prompt
   app.delete(api.prompts.delete.path, requireUser, async (req, res) => {
-    const userId = (req as any).user.id as string;
+    try {
+      const userId = req.user!.id;
       await storage.deletePrompt(userId, req.params.id);
-    res.status(204).send();
+      res.status(204).send();
+    } catch (err: any) {
+      log(`Delete prompt error: ${err?.message || String(err)}`, "prompts");
+      sendError(res, req, 500, "DB_ERROR", "Failed to delete prompt");
+    }
   });
 
   // Analytics Summary
   app.get(api.prompts.analytics.path, requireUser, async (req, res) => {
-    const userId = (req as any).user.id as string;
+    try {
+      const userId = req.user!.id;
       const summary = await storage.getAnalyticsSummary(userId);
-    res.json(summary);
+      res.json(summary);
+    } catch (err: any) {
+      log(`Analytics summary error: ${err?.message || String(err)}`, "analytics");
+      sendError(res, req, 500, "DB_ERROR", "Failed to fetch analytics");
+    }
   });
 
   // Seed Data (only if tables exist)
@@ -413,7 +487,7 @@ app.get(api.account.exportCsv.path, requireUser, async (req, res) => {
   } catch (err: any) {
     // Ignore errors if tables don't exist yet (need to run db:push first)
     if (err?.code !== '42P01' && !err?.message?.includes('does not exist')) {
-      console.error('Seed database error:', err);
+      log(`Seed database error: ${err?.message || String(err)}`, "seed");
     }
   }
 

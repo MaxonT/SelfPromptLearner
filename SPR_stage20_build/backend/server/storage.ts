@@ -361,8 +361,6 @@ export class DatabaseStorage implements IStorage {
     return u;
   }
 
-}
-
   async rotateUserToken(userId: string, apiToken: string) {
     const [u] = await db.update(users).set({ apiToken }).where(eq(users.id, userId)).returning({
       apiToken: users.apiToken,

@@ -357,14 +357,21 @@ app.get(api.account.exportCsv.path, requireUser, async (req, res) => {
     res.json(summary);
   });
 
-  // Seed Data
-  await seedDatabase();
+  // Seed Data (only if tables exist)
+  try {
+    await seedDatabase();
+  } catch (err: any) {
+    // Ignore errors if tables don't exist yet (need to run db:push first)
+    if (err?.code !== '42P01' && !err?.message?.includes('does not exist')) {
+      console.error('Seed database error:', err);
+    }
+  }
 
   return httpServer;
 }
 
 async function seedDatabase() {
-  const existing = await storage.getPrompts({ limit: 1, offset: 0 });
+  const existing = await storage.getPrompts('00000000-0000-0000-0000-000000000000', { limit: 1, offset: 0 });
   if (existing.total === 0) {
    // Seeding sample data (dev only)
     const samplePrompts = [

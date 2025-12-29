@@ -128,14 +128,14 @@ app.get(api.account.exportJson.path, requireUser, async (req, res) => {
   res.write('{"exportedAt":"' + new Date().toISOString() + '","prompts":[');
   while (true) {
     const batch = await storage.getPrompts(userId, { limit, offset, sortBy: "date" });
-    if (!batch.length) break;
-    for (const p of batch) {
+    if (!batch.items.length) break;
+    for (const p of batch.items) {
       const row = JSON.stringify(p);
       if (first) { res.write(row); first = false; }
       else { res.write("," + row); }
     }
-    offset += batch.length;
-    if (batch.length < limit) break;
+    offset += batch.items.length;
+    if (batch.items.length < limit) break;
   }
   res.write("]}");
   res.end();
@@ -159,9 +159,9 @@ app.get(api.account.exportCsv.path, requireUser, async (req, res) => {
   let offset = 0;
   while (true) {
     const batch = await storage.getPrompts(userId, { limit, offset, sortBy: "date" });
-    if (!batch.length) break;
+    if (!batch.items.length) break;
 
-    for (const p of batch) {
+    for (const p of batch.items) {
       const tags = Array.isArray((p as any).tags) ? (p as any).tags.join("|") : "";
       const line = [
         esc((p as any).id),
@@ -181,8 +181,8 @@ app.get(api.account.exportCsv.path, requireUser, async (req, res) => {
       res.write(line);
     }
 
-    offset += batch.length;
-    if (batch.length < limit) break;
+    offset += batch.items.length;
+    if (batch.items.length < limit) break;
   }
   res.end();
 });

@@ -147,10 +147,54 @@ app.use((req, res, next) => {
   next();
 });
 
+// Validate required environment variables
+function validateEnv() {
+  const required = ["DATABASE_URL"];
+  const missing: string[] = [];
+
+  for (const key of required) {
+    if (!process.env[key]) {
+      missing.push(key);
+    }
+  }
+
+  if (missing.length > 0) {
+    throw new Error(`Missing required environment variables: ${missing.join(", ")}`);
+  }
+
+  // Warn about production-specific requirements
+  if (process.env.NODE_ENV === "production") {
+    if (!process.env.SESSION_SECRET) {
+      jsonLog("warn", {
+        source: "env",
+        msg: "SESSION_SECRET not set in production - using generated secret (not recommended)",
+      });
+    }
+    if (!process.env.APP_ORIGIN) {
+      jsonLog("warn", {
+        source: "env",
+        msg: "APP_ORIGIN not set in production - CORS may not work correctly",
+      });
+    }
+  }
+}
+
 (async () => {
+  // Validate environment variables
+  try {
+    validateEnv();
+  } catch (err: any) {
+    jsonLog("error", {
+      source: "startup",
+      message: `Environment validation failed: ${err?.message || String(err)}`,
+    });
+    process.exit(1);
+  }
+
   // Optional Sentry: set SENTRY_DSN and install @sentry/node to enable.
   if (process.env.SENTRY_DSN) {
     try {
+      // @ts-expect-error - @sentry/node is optional dependency
       const Sentry = await import("@sentry/node");
       if (Sentry?.init) {
         Sentry.init({
@@ -178,8 +222,11 @@ app.use((req, res, next) => {
   try {
     const { initDatabase } = await import("./init-db");
     await initDatabase();
-  } catch (err) {
-    console.error("数据库初始化失败:", err);
+  } catch (err: any) {
+    jsonLog("error", {
+      source: "init-db",
+      message: `数据库初始化失败: ${err?.message || String(err)}`,
+    });
     // 继续启动，表可能已经存在
   }
 

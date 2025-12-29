@@ -1,11 +1,22 @@
-import { motion } from "framer-motion";
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "wouter";
 import { formatDistanceToNow } from "date-fns";
-import { Star, Sparkles, MessageSquare, ExternalLink, Trash2 } from "lucide-react";
+import { Star, Sparkles, MessageSquare, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Prompt } from "@backend/shared/schema";
 import { useDeletePrompt, useUpdatePrompt } from "@/hooks/use-prompts";
 import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface PromptCardProps {
   prompt: Prompt;
@@ -16,23 +27,50 @@ export function PromptCard({ prompt, index }: PromptCardProps) {
   const { mutate: deletePrompt } = useDeletePrompt();
   const { mutate: updatePrompt } = useUpdatePrompt();
   const { toast } = useToast();
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isFavoriting, setIsFavoriting] = useState(false);
 
   const handleDelete = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (confirm("Are you sure you want to delete this prompt?")) {
-      deletePrompt(prompt.id, {
-        onSuccess: () => {
-          toast({ title: "Prompt deleted", description: "The prompt has been removed from your history." });
-        },
-      });
-    }
+    setShowDeleteDialog(true);
+  };
+
+  const confirmDelete = () => {
+    deletePrompt(prompt.id, {
+      onSuccess: () => {
+        toast({ 
+          title: "已删除", 
+          description: "提示已从历史记录中移除",
+          duration: 2000
+        });
+      },
+    });
+    setShowDeleteDialog(false);
   };
 
   const handleToggleFavorite = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    updatePrompt({ id: prompt.id, isFavorite: !prompt.isFavorite });
+    
+    setIsFavoriting(true);
+    updatePrompt(
+      { id: prompt.id, isFavorite: !prompt.isFavorite },
+      {
+        onSuccess: () => {
+          toast({
+            title: prompt.isFavorite ? "已取消收藏" : "已收藏",
+            description: prompt.isFavorite 
+              ? "提示已从收藏中移除" 
+              : "提示已添加到收藏",
+            duration: 2000,
+          });
+        },
+        onSettled: () => {
+          setTimeout(() => setIsFavoriting(false), 300);
+        },
+      }
+    );
   };
 
   // Determine clarity score color
@@ -63,19 +101,28 @@ export function PromptCard({ prompt, index }: PromptCardProps) {
               </span>
             </div>
             
-            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+            {/* Actions - Always visible on mobile, hover on desktop */}
+            <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200">
               <button
                 onClick={handleToggleFavorite}
                 className={cn(
-                  "p-2 rounded-lg transition-colors hover:bg-white/10",
+                  "p-2.5 rounded-lg transition-all min-w-[44px] min-h-[44px] flex items-center justify-center",
+                  "hover:bg-white/10 active:scale-95",
                   prompt.isFavorite ? "text-yellow-400" : "text-muted-foreground"
                 )}
+                aria-label={prompt.isFavorite ? "取消收藏" : "收藏"}
               >
-                <Star className={cn("w-4 h-4", prompt.isFavorite && "fill-current")} />
+                <motion.div
+                  animate={isFavoriting ? { scale: [1, 1.3, 1], rotate: [0, 180, 360] } : {}}
+                  transition={{ duration: 0.5 }}
+                >
+                  <Star className={cn("w-4 h-4", prompt.isFavorite && "fill-current")} />
+                </motion.div>
               </button>
               <button
                 onClick={handleDelete}
-                className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                className="p-2.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all min-w-[44px] min-h-[44px] flex items-center justify-center active:scale-95"
+                aria-label="删除"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -83,11 +130,12 @@ export function PromptCard({ prompt, index }: PromptCardProps) {
           </div>
 
           {/* Main Content */}
-          <div className="relative">
-            <p className="text-foreground/90 font-medium leading-relaxed line-clamp-3 group-hover:text-primary/90 transition-colors font-mono text-sm">
+          <div className="relative min-h-[4.5rem]">
+            <p className="text-foreground/90 font-medium leading-relaxed line-clamp-3 group-hover:text-primary/90 transition-colors font-mono text-sm break-words">
               {prompt.promptText}
             </p>
-            <div className="absolute bottom-0 left-0 w-full h-8 bg-gradient-to-t from-card/60 to-transparent pointer-events-none" />
+            {/* Improved gradient fade for text truncation */}
+            <div className="absolute bottom-0 left-0 w-full h-12 bg-gradient-to-t from-card via-card/80 to-transparent pointer-events-none" />
           </div>
 
           {/* Footer: Stats & Tags */}
@@ -109,6 +157,35 @@ export function PromptCard({ prompt, index }: PromptCardProps) {
           </div>
         </div>
       </Link>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认删除</AlertDialogTitle>
+            <AlertDialogDescription>
+              确定要删除这条提示吗？此操作无法撤销，提示将从您的历史记录中永久移除。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={(e) => {
+              e.stopPropagation();
+              setShowDeleteDialog(false);
+            }}>
+              取消
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.stopPropagation();
+                confirmDelete();
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </motion.div>
   );
 }

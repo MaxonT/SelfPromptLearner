@@ -5,7 +5,7 @@ services:
     plan: free
     rootDir: SPR_stage20_build
     buildCommand: NODE_ENV=development npm install --registry=https://registry.npmjs.org/ && npm run build
-    startCommand: npm run start
+    startCommand: (npm run db:push || true) && npm run start
     healthCheckPath: /api/health
     envVars:
       - key: NODE_VERSION

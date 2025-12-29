@@ -371,8 +371,14 @@ app.get(api.account.exportCsv.path, requireUser, async (req, res) => {
 }
 
 async function seedDatabase() {
-  const existing = await storage.getPrompts('00000000-0000-0000-0000-000000000000', { limit: 1, offset: 0 });
-  if (existing.total === 0) {
+  // Skip seeding in production - users should create their own prompts
+  if (process.env.NODE_ENV === 'production') {
+    return;
+  }
+  
+  // For dev: try to seed sample data (requires a test user)
+  // This is skipped in production
+  return;
    // Seeding sample data (dev only)
     const samplePrompts = [
       {

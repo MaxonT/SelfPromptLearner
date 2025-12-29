@@ -139,7 +139,7 @@ export class DatabaseStorage implements IStorage {
       .from(prompts)
       .where(and(
         eq(prompts.deviceId, prompt.deviceId),
-        eq(prompts.clientEventId, prompt.clientEventId),
+        eq(prompts.clientEventId, prompt.clientEventId || ''),
         eq(prompts.userId, userId),
       ));
 

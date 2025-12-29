@@ -4,6 +4,8 @@ import { Strategy as LocalStrategy } from "passport-local";
 import crypto from "crypto";
 import type { Express, Request, Response, NextFunction } from "express";
 import { storage } from "./storage";
+import { pool } from "./db";
+import connectPgSimple from "connect-pg-simple";
 
 const SESSION_SECRET = (() => {
   if (process.env.SESSION_SECRET) return process.env.SESSION_SECRET;
@@ -33,8 +35,15 @@ export function newApiToken(): string {
 }
 
 export function setupAuth(app: Express) {
+  const PgSession = connectPgSimple(session);
+  
   app.use(
     session({
+      store: new PgSession({
+        pool: pool,
+        tableName: "user_sessions",
+        createTableIfMissing: true,
+      }),
       secret: SESSION_SECRET,
       resave: false,
       saveUninitialized: false,

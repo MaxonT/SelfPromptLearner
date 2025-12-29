@@ -98,38 +98,10 @@ export default function Login() {
       // 刷新认证状态查询，确保 AuthGate 能检测到登录状态
       await queryClient.invalidateQueries({ queryKey: ["me"] });
       
-      // 等待会话建立，重试机制确保认证成功
-      const maxRetries = 5;
-      let authenticated = false;
-      for (let i = 0; i < maxRetries; i++) {
-        await new Promise(resolve => setTimeout(resolve, 300));
-        try {
-          // Directly fetch to verify session is established
-          const res = await fetch(api.auth.me.path, { credentials: "include" });
-          if (res.ok) {
-            const data = await res.json();
-            if (data && data.email) {
-              authenticated = true;
-              // Update the query cache with the fresh data
-              queryClient.setQueryData(["me"], data);
-              break;
-            }
-          }
-        } catch (e) {
-          // Continue retrying
-        }
-      }
+      // 给足够时间让 session cookie 被设置和保存
+      await new Promise(resolve => setTimeout(resolve, 500));
       
-      if (authenticated) {
-        setLocation("/");
-      } else {
-        toast({ 
-          title: "登录成功但跳转失败", 
-          description: "请手动刷新页面", 
-          variant: "destructive",
-          duration: 5000
-        });
-      }
+      setLocation("/");
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : "Unknown error";
       const friendlyMessage = getFriendlyErrorMessage(errorMessage);

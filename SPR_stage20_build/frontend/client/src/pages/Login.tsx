@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -35,6 +36,7 @@ async function postJson<T = unknown>(path: string, body: Record<string, unknown>
 export default function Login() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const [mode, setMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
@@ -49,6 +51,13 @@ export default function Login() {
         const data = await postJson<{ apiToken: string; email: string }>(api.auth.login.path, { email, password });
         toast({ title: "Logged in", description: `Token: ${data.apiToken}` });
       }
+      
+      // 刷新认证状态查询，确保 AuthGate 能检测到登录状态
+      await queryClient.invalidateQueries({ queryKey: ["me"] });
+      
+      // 等待一下确保状态更新
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       setLocation("/");
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : "Unknown error";

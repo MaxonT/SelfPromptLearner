@@ -13,15 +13,17 @@ export function AuthGate({ children }: { children: ReactNode }) {
       if (!res.ok) throw new Error("Failed to fetch session");
       return await res.json();
     },
+    retry: false,
+    refetchOnWindowFocus: true, // 窗口聚焦时重新检查
   });
 
   useEffect(() => {
-    if (q.data === null && !q.isLoading) {
+    if (q.data === null && !q.isLoading && !q.isFetching) {
       setLocation("/login");
     }
-  }, [q.data, q.isLoading, setLocation]);
+  }, [q.data, q.isLoading, q.isFetching, setLocation]);
 
-  if (q.isLoading) return <div className="p-6">Loading…</div>;
+  if (q.isLoading || q.isFetching) return <div className="p-6">Loading…</div>;
   if (q.data === null) {
     return <div className="p-6">Redirecting…</div>;
   }

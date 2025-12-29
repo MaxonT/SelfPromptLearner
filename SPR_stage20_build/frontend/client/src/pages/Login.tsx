@@ -98,10 +98,33 @@ export default function Login() {
       // 刷新认证状态查询，确保 AuthGate 能检测到登录状态
       await queryClient.invalidateQueries({ queryKey: ["me"] });
       
-      // 等待一下确保状态更新
-      await new Promise(resolve => setTimeout(resolve, 200));
+      // 等待会话建立，重试机制确保认证成功
+      const maxRetries = 5;
+      let authenticated = false;
+      for (let i = 0; i < maxRetries; i++) {
+        await new Promise(resolve => setTimeout(resolve, 300));
+        try {
+          await queryClient.refetchQueries({ queryKey: ["me"] });
+          const data = queryClient.getQueryData(["me"]);
+          if (data && data !== null) {
+            authenticated = true;
+            break;
+          }
+        } catch (e) {
+          // Continue retrying
+        }
+      }
       
-      setLocation("/");
+      if (authenticated) {
+        setLocation("/");
+      } else {
+        toast({ 
+          title: "登录成功但跳转失败", 
+          description: "请手动刷新页面", 
+          variant: "destructive",
+          duration: 5000
+        });
+      }
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : "Unknown error";
       const friendlyMessage = getFriendlyErrorMessage(errorMessage);

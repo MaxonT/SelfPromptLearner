@@ -376,63 +376,6 @@ async function seedDatabase() {
     return;
   }
   
-  // For dev: try to seed sample data (requires a test user)
-  // This is skipped in production
+  // For dev: seeding is disabled - users should register and create their own prompts
   return;
-   // Seeding sample data (dev only)
-    const samplePrompts = [
-      {
-        site: "chatgpt",
-        pageUrl: "https://chat.openai.com/c/123",
-        promptText: "Write a React component for a sortable table with filtering.",
-        promptHash: "hash1",
-        meta: {
-          lengthChars: 55,
-          lengthTokensEst: 12,
-          isEdit: false,
-          submitMethod: "enter"
-        },
-        tags: ["coding", "react"],
-        analysis: {
-          taxonomy: {
-            taskType: ["coding"],
-            intent: ["command"],
-            constraints: ["sortable", "filtering"],
-            riskFlags: []
-          },
-          scores: { clarity: 85, ambiguity: 10, reproducibility: 90 },
-          traits: ["precision", "context-minimalist"],
-          suggestions: ["Add accessibility requirements"]
-        }
-      },
-      {
-        site: "claude",
-        pageUrl: "https://claude.ai/chat/abc",
-        promptText: "Explain the difference between useEffect and useLayoutEffect. Give examples.",
-        promptHash: "hash2",
-        meta: {
-          lengthChars: 72,
-          lengthTokensEst: 18,
-          isEdit: false,
-          submitMethod: "click"
-        },
-        tags: ["study", "react"],
-        analysis: {
-          taxonomy: {
-            taskType: ["study"],
-            intent: ["ask"],
-            constraints: ["examples"],
-            riskFlags: []
-          },
-          scores: { clarity: 90, ambiguity: 5, reproducibility: 80 },
-          traits: ["exploration"],
-          suggestions: []
-        }
-      }
-    ];
-
-    for (const p of samplePrompts) {
-      await storage.createPrompt(p);
-    }
-  }
 }

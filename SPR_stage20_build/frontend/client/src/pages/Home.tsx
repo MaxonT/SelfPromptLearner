@@ -6,7 +6,11 @@ import { SyncStatusBanner } from "@/components/SyncStatusBanner";
 import { StatCard } from "@/components/StatCard";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Filter, Sparkles, MessageSquare, Trophy, Ghost, AlertTriangle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { LoadingState } from "@/components/states/LoadingState";
+import { EmptyState } from "@/components/states/EmptyState";
+import { ErrorState } from "@/components/states/ErrorState";
+import { Search, Filter, Sparkles, MessageSquare, Trophy, Ghost, X } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function Home() {
@@ -32,6 +36,25 @@ export default function Home() {
 
   const prompts = promptsResult?.items ?? [];
   const total = promptsResult?.total ?? 0;
+
+  // 计算激活的过滤器数量
+  const activeFiltersCount = [
+    search,
+    siteFilter !== "all",
+    tagFilter !== "all",
+    taskTypeFilter !== "all",
+    riskFlagFilter !== "all",
+  ].filter(Boolean).length;
+
+  // 清除所有过滤器
+  const clearAllFilters = () => {
+    setSearch("");
+    setSiteFilter("all");
+    setTagFilter("all");
+    setTaskTypeFilter("all");
+    setRiskFlagFilter("all");
+    setPage(0);
+  };
 
   const { data: taxonomyData } = useTaxonomy();
   const { data: tagsData } = useTags();
@@ -68,10 +91,6 @@ export default function Home() {
             </div>
             
             <div className="flex items-center gap-3">
-               <div className="text-right hidden md:block">
-                 <p className="text-xs text-muted-foreground uppercase tracking-widest font-semibold">Current Streak</p>
-                 <p className="text-2xl font-mono text-primary font-bold">12 Days 🔥</p>
-               </div>
             </div>
           </div>
         </header>
@@ -97,16 +116,12 @@ export default function Home() {
             title="Total Prompts"
             value={analytics?.totalPrompts ?? 0}
             icon={<MessageSquare className="w-6 h-6" />}
-            trend="12% vs last week"
-            trendUp
             delay={0.1}
           />
           <StatCard
             title="Avg. Clarity Score"
             value={analytics ? `${Math.round(analytics.averageClarity)}%` : "-"}
             icon={<Sparkles className="w-6 h-6" />}
-            trend="Improved"
-            trendUp
             delay={0.2}
           />
           <StatCard
@@ -119,109 +134,113 @@ export default function Home() {
         </div>
 
         {/* Filters & Controls */}
-        <div className="sticky top-4 z-40 glass-card p-4 rounded-xl mb-8 flex flex-col md:flex-row gap-4 items-center justify-between border border-white/10 shadow-lg">
-          <div className="relative w-full md:w-96">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Search prompts..."
-              className="pl-10 bg-black/20 border-white/10 text-white placeholder:text-white/40 focus:ring-primary/50"
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(0);
-              }}
-            />
-          </div>
-          
-          <div className="flex items-center gap-3 w-full md:w-auto">
-            <Select value={siteFilter} onValueChange={(v) => { setSiteFilter(v); setPage(0); }}>
-              <SelectTrigger className="w-full md:w-40 bg-black/20 border-white/10">
-                <div className="flex items-center gap-2">
-                  <Filter className="w-4 h-4 text-muted-foreground" />
-                  <SelectValue placeholder="Platform" />
-                </div>
-              </SelectTrigger>
-              <SelectContent className="bg-card border-white/10">
-                <SelectItem value="all">All Platforms</SelectItem>
-                <SelectItem value="chatgpt">ChatGPT</SelectItem>
-                <SelectItem value="claude">Claude</SelectItem>
-                <SelectItem value="gemini">Gemini</SelectItem>
-              </SelectContent>
-            </Select>
+        <div className="sticky top-4 z-40 glass-card p-4 rounded-xl mb-8 border border-white/10 shadow-lg">
+          <div className="flex flex-col gap-4">
+            {/* Search Bar */}
+            <div className="relative w-full">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="搜索提示..."
+                className="pl-10 bg-black/20 border-white/10 text-white placeholder:text-white/40 focus:ring-primary/50"
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(0);
+                }}
+              />
+            </div>
+            
+            {/* Filters Row */}
+            <div className="flex flex-col md:flex-row items-start md:items-center gap-3 w-full">
+              <div className="flex items-center gap-2 flex-wrap flex-1">
+                <Select value={siteFilter} onValueChange={(v) => { setSiteFilter(v); setPage(0); }}>
+                  <SelectTrigger className="w-full md:w-40 bg-black/20 border-white/10 min-h-[44px]">
+                    <div className="flex items-center gap-2">
+                      <Filter className="w-4 h-4 text-muted-foreground" />
+                      <SelectValue placeholder="平台" />
+                    </div>
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-white/10">
+                    <SelectItem value="all">全部平台</SelectItem>
+                    <SelectItem value="chatgpt">ChatGPT</SelectItem>
+                    <SelectItem value="claude">Claude</SelectItem>
+                    <SelectItem value="gemini">Gemini</SelectItem>
+                  </SelectContent>
+                </Select>
 
-            <Select value={tagFilter} onValueChange={(v) => { setTagFilter(v); setPage(0); }}>
-              <SelectTrigger className="w-full md:w-40 bg-black/20 border-white/10">
-                <SelectValue placeholder="Tag" />
-              </SelectTrigger>
-              <SelectContent className="bg-card border-white/10">
-                <SelectItem value="all">All Tags</SelectItem>
-                {tags.map((t) => (
-                  <SelectItem key={t} value={t}>{t}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                <Select value={tagFilter} onValueChange={(v) => { setTagFilter(v); setPage(0); }}>
+                  <SelectTrigger className="w-full md:w-40 bg-black/20 border-white/10 min-h-[44px]">
+                    <SelectValue placeholder="标签" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-white/10">
+                    <SelectItem value="all">全部标签</SelectItem>
+                    {tags.map((t) => (
+                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
 
-            <Select value={taskTypeFilter} onValueChange={(v) => { setTaskTypeFilter(v); setPage(0); }}>
-              <SelectTrigger className="w-full md:w-40 bg-black/20 border-white/10">
-                <SelectValue placeholder="Task Type" />
-              </SelectTrigger>
-              <SelectContent className="bg-card border-white/10">
-                <SelectItem value="all">All Types</SelectItem>
-                {taskTypes.map((t) => (
-                  <SelectItem key={t} value={t}>{t}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                <Select value={taskTypeFilter} onValueChange={(v) => { setTaskTypeFilter(v); setPage(0); }}>
+                  <SelectTrigger className="w-full md:w-40 bg-black/20 border-white/10 min-h-[44px]">
+                    <SelectValue placeholder="任务类型" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-white/10">
+                    <SelectItem value="all">全部类型</SelectItem>
+                    {taskTypes.map((t) => (
+                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
 
-            <Select value={riskFlagFilter} onValueChange={(v) => { setRiskFlagFilter(v); setPage(0); }}>
-              <SelectTrigger className="w-full md:w-40 bg-black/20 border-white/10">
-                <SelectValue placeholder="Risk" />
-              </SelectTrigger>
-              <SelectContent className="bg-card border-white/10">
-                <SelectItem value="all">All Risks</SelectItem>
-                {riskFlags.map((t) => (
-                  <SelectItem key={t} value={t}>{t}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                <Select value={riskFlagFilter} onValueChange={(v) => { setRiskFlagFilter(v); setPage(0); }}>
+                  <SelectTrigger className="w-full md:w-40 bg-black/20 border-white/10 min-h-[44px]">
+                    <SelectValue placeholder="风险标记" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-white/10">
+                    <SelectItem value="all">全部风险</SelectItem>
+                    {riskFlags.map((t) => (
+                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
 
-            <Select value={sortBy} onValueChange={(v: "date" | "clarity") => { setSortBy(v); setPage(0); }}>
-              <SelectTrigger className="w-full md:w-40 bg-black/20 border-white/10">
-                <SelectValue placeholder="Sort By" />
-              </SelectTrigger>
-              <SelectContent className="bg-card border-white/10">
-                <SelectItem value="date">Newest First</SelectItem>
-                <SelectItem value="clarity">Best Clarity</SelectItem>
-              </SelectContent>
-            </Select>
+                <Select value={sortBy} onValueChange={(v: "date" | "clarity") => { setSortBy(v); setPage(0); }}>
+                  <SelectTrigger className="w-full md:w-40 bg-black/20 border-white/10 min-h-[44px]">
+                    <SelectValue placeholder="排序方式" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-white/10">
+                    <SelectItem value="date">最新优先</SelectItem>
+                    <SelectItem value="clarity">清晰度优先</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {/* Clear Filters Button */}
+              {activeFiltersCount > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearAllFilters}
+                  className="flex items-center gap-2 min-h-[44px]"
+                >
+                  <X className="w-4 h-4" />
+                  清除筛选 ({activeFiltersCount})
+                </Button>
+              )}
+            </div>
           </div>
         </div>
 
         {/* Content Grid */}
         {isPromptsError ? (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="flex flex-col items-center justify-center py-20 text-center"
-          >
-            <div className="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center mb-6">
-              <AlertTriangle className="w-10 h-10 text-muted-foreground" />
-            </div>
-            <h3 className="text-2xl font-bold mb-2">Couldn't load your prompts</h3>
-            <p className="text-muted-foreground max-w-md mb-8">Tap retry. If it keeps failing, check your login session or server status.</p>
-            <button
-              className="px-6 py-3 rounded-2xl bg-primary text-primary-foreground font-semibold hover:opacity-90 transition"
-              onClick={() => refetchPrompts()}
-            >
-              Retry
-            </button>
-          </motion.div>
+          <ErrorState
+            title="无法加载提示"
+            message="加载数据时出错，请检查网络连接或稍后重试"
+            onRetry={() => refetchPrompts()}
+            retryLabel="重试"
+          />
         ) : isLoadingPrompts ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[1, 2, 3, 4, 5, 6].map((n) => (
-              <div key={n} className="h-48 rounded-2xl bg-white/5 animate-pulse" />
-            ))}
-          </div>
+          <LoadingState message="正在加载您的提示..." />
         ) : prompts && prompts.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {prompts.map((prompt, index) => (
@@ -229,19 +248,23 @@ export default function Home() {
             ))}
           </div>
         ) : (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="flex flex-col items-center justify-center py-20 text-center"
-          >
-            <div className="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center mb-6">
-              <Ghost className="w-10 h-10 text-muted-foreground/50" />
-            </div>
-            <h3 className="text-xl font-bold text-foreground">No prompts found</h3>
-            <p className="text-muted-foreground mt-2 max-w-sm">
-              Try adjusting your filters or use the extension to save your first prompt.
-            </p>
-          </motion.div>
+          <EmptyState
+            icon={<Ghost className="w-10 h-10 text-muted-foreground/50" />}
+            title="暂无提示"
+            description={
+              activeFiltersCount > 0
+                ? "没有找到匹配筛选条件的提示，尝试调整筛选条件或清除所有筛选"
+                : "还没有保存任何提示。安装扩展程序并开始记录您的提示，它们会在这里显示。"
+            }
+            action={
+              activeFiltersCount > 0
+                ? {
+                    label: "清除所有筛选",
+                    onClick: clearAllFilters,
+                  }
+                : undefined
+            }
+          />
         )}
 
         {/* Pagination */}

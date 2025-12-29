@@ -41,6 +41,30 @@
   --font-sans: 'DM Sans', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
   --font-display: 'Space Grotesk', sans-serif;
+
+  /* Unified Spacing System (4px base unit) */
+  --spacing-xs: 0.25rem;   /* 4px */
+  --spacing-sm: 0.5rem;    /* 8px */
+  --spacing-md: 1rem;      /* 16px */
+  --spacing-lg: 1.5rem;    /* 24px */
+  --spacing-xl: 2rem;      /* 32px */
+  --spacing-2xl: 3rem;     /* 48px */
+  --spacing-3xl: 4rem;     /* 64px */
+
+  /* Unified Animation Durations */
+  --duration-fast: 150ms;
+  --duration-normal: 200ms;
+  --duration-slow: 300ms;
+  --duration-slower: 500ms;
+
+  /* Unified Easing Functions */
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-smooth: cubic-bezier(0.25, 0.1, 0.25, 1);
+
+  /* Touch Target Minimum Size (Accessibility) */
+  --touch-target-min: 44px;
 }
 
 @layer base {
@@ -64,10 +88,33 @@
   /* Glassmorphism utilities */
   .glass-card {
     @apply bg-card/60 backdrop-blur-xl border border-white/5 shadow-xl;
+    transition: all var(--duration-normal) var(--ease-smooth);
   }
   
   .glass-panel {
     @apply bg-background/80 backdrop-blur-md border-r border-border;
+  }
+
+  /* Unified transition utilities */
+  .transition-fast {
+    transition-duration: var(--duration-fast);
+    transition-timing-function: var(--ease-out);
+  }
+  
+  .transition-normal {
+    transition-duration: var(--duration-normal);
+    transition-timing-function: var(--ease-smooth);
+  }
+  
+  .transition-slow {
+    transition-duration: var(--duration-slow);
+    transition-timing-function: var(--ease-smooth);
+  }
+
+  /* Touch target utilities */
+  .touch-target {
+    min-width: var(--touch-target-min);
+    min-height: var(--touch-target-min);
   }
 
   /* Custom scrollbar */
@@ -80,10 +127,35 @@
   }
   ::-webkit-scrollbar-thumb {
     @apply bg-muted rounded-full hover:bg-muted-foreground/50 transition-colors;
+    transition-duration: var(--duration-normal);
+    transition-timing-function: var(--ease-smooth);
   }
 }
 
 /* Page Transition Wrapper */
 .page-transition {
-  @apply animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out;
+  @apply animate-in fade-in slide-in-from-bottom-4;
+  animation-duration: var(--duration-slower);
+  animation-timing-function: var(--ease-smooth);
+}
+
+/* Unified hover effects */
+.hover-lift {
+  transition: transform var(--duration-normal) var(--ease-smooth);
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+}
+
+.hover-scale {
+  transition: transform var(--duration-normal) var(--ease-smooth);
+}
+
+.hover-scale:hover {
+  transform: scale(1.02);
+}
+
+.hover-scale:active {
+  transform: scale(0.98);
 }

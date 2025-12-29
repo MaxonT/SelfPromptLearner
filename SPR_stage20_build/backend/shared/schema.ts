@@ -96,8 +96,6 @@ export const prompts = pgTable("prompts", {
   deviceEventUniq: uniqueIndex("prompts_device_event_uniq").on(t.deviceId, t.clientEventId),
   userCreatedIdx: index("prompts_user_created_idx").on(t.userId, t.createdAt),
   userSiteIdx: index("prompts_user_site_idx").on(t.userId, t.site),
-  userTaskIdx: index("prompts_user_task_idx").on(t.userId, t.taskType),
-  userIntentIdx: index("prompts_user_intent_idx").on(t.userId, t.intent),
   tagsGinIdx: index("prompts_tags_gin_idx").using("gin", t.tags),
 }));
 

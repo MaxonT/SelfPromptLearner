@@ -13,7 +13,8 @@ export function AuthGate({ children }: { children: ReactNode }) {
       if (!res.ok) throw new Error("Failed to fetch session");
       return await res.json();
     },
-    retry: false,
+    retry: 3,
+    retryDelay: 500,
     refetchOnWindowFocus: true, // 窗口聚焦时重新检查
   });
 

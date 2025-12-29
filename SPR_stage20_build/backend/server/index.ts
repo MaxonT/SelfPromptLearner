@@ -193,12 +193,20 @@ app.use((req, res, next) => {
   }
 
   const port = parseInt(process.env.PORT || "5000", 10);
+  
+  // reusePort 在 Node 22+ macOS 上可能不支持，只在生产环境且明确需要时启用
+  const listenOptions: any = {
+    port,
+    host: "0.0.0.0",
+  };
+  
+  // 只在 Render 等支持 reusePort 的环境启用（通过环境变量控制）
+  if (process.env.ENABLE_REUSE_PORT === "true") {
+    listenOptions.reusePort = true;
+  }
+  
   httpServer.listen(
-    {
-      port,
-      host: "0.0.0.0",
-      reusePort: true,
-    },
+    listenOptions,
     () => {
       log(`serving on port ${port}`);
     },

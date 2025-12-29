@@ -147,8 +147,7 @@ app.get(api.account.exportCsv.path, requireUser, async (req, res) => {
   res.setHeader("Content-Type", "text/csv; charset=utf-8");
   res.setHeader("Content-Disposition", 'attachment; filename="spr-prompts.csv"');
 
-  const header = ["id","createdAt","site","pageUrl","conversationId","promptText","deviceId","clientEventId","promptHash","taskType","intent","riskFlag","tags"].join(",") + "
-";
+  const header = ["id","createdAt","site","pageUrl","conversationId","promptText","deviceId","clientEventId","promptHash","taskType","intent","riskFlag","tags"].join(",") + "\n";
   res.write(header);
 
   const esc = (s: any) => {
@@ -178,8 +177,7 @@ app.get(api.account.exportCsv.path, requireUser, async (req, res) => {
         esc((p as any).intent),
         esc((p as any).riskFlag),
         esc(tags),
-      ].join(",") + "
-";
+      ].join(",") + "\n";
       res.write(line);
     }
 

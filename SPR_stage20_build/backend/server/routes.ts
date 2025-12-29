@@ -61,7 +61,13 @@ export async function registerRoutes(
       // establish session
       await new Promise<void>((resolve, reject) => {
         // @ts-ignore
-        req.login({ id: user.id }, (err) => err ? reject(err) : resolve());
+        req.login({ id: user.id }, (err) => {
+          if (err) {
+            console.error("Session login error during register:", err);
+            return reject(err);
+          }
+          resolve();
+        });
       });
 
       return res.status(201).json({ ok: true, apiToken: user.apiToken, email: user.email });
@@ -70,7 +76,12 @@ export async function registerRoutes(
       if (err.name === "ZodError") {
         return res.status(400).json({ message: "Invalid input", errors: err.errors });
       }
-      return next(err);
+      // 确保返回JSON格式的错误
+      const statusCode = err.statusCode || 500;
+      return res.status(statusCode).json({ 
+        message: err.message || "Internal server error",
+        code: err.code || "INTERNAL_ERROR"
+      });
     }
   });
 
@@ -84,7 +95,10 @@ export async function registerRoutes(
       passport.authenticate("local", async (err: any, user: any) => {
         if (err) {
           console.error("Login passport error:", err);
-          return next(err);
+          return res.status(500).json({ 
+            message: err.message || "Authentication failed",
+            code: "AUTH_ERROR"
+          });
         }
         if (!user) return res.status(401).json({ message: "Invalid credentials" });
 
@@ -92,14 +106,20 @@ export async function registerRoutes(
         req.login(user, async (err2) => {
           if (err2) {
             console.error("Login session error:", err2);
-            return next(err2);
+            return res.status(500).json({ 
+              message: err2.message || "Session creation failed",
+              code: "SESSION_ERROR"
+            });
           }
           try {
             const full = await storage.getUserByEmail(input.email);
             return res.json({ ok: true, apiToken: full?.apiToken ?? "", email: input.email });
           } catch (dbErr: any) {
             console.error("Login database error:", dbErr);
-            return next(dbErr);
+            return res.status(500).json({ 
+              message: dbErr.message || "Database error",
+              code: "DB_ERROR"
+            });
           }
         });
       })(req, res, next);
@@ -108,7 +128,10 @@ export async function registerRoutes(
       if (err.name === "ZodError") {
         return res.status(400).json({ message: "Invalid input", errors: err.errors });
       }
-      return next(err);
+      return res.status(500).json({ 
+        message: err.message || "Internal server error",
+        code: "PARSE_ERROR"
+      });
     }
   });
 

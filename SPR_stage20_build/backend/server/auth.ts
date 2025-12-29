@@ -35,26 +35,38 @@ export function newApiToken(): string {
 }
 
 export function setupAuth(app: Express) {
-  const PgSession = connectPgSimple(session);
+  // 在生产环境使用 PostgreSQL 存储 session，开发环境使用 MemoryStore
+  const sessionConfig: session.SessionOptions = {
+    secret: SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 1000 * 60 * 60 * 24 * 30,
+    },
+  };
   
-  app.use(
-    session({
-      store: new PgSession({
+  // 只在生产环境且数据库可用时使用 PostgreSQL session store
+  if (process.env.NODE_ENV === "production" && process.env.DATABASE_URL) {
+    try {
+      const PgSession = connectPgSimple(session);
+      sessionConfig.store = new PgSession({
         pool: pool,
         tableName: "user_sessions",
-        createTableIfMissing: true,
-      }),
-      secret: SESSION_SECRET,
-      resave: false,
-      saveUninitialized: false,
-      cookie: {
-        httpOnly: true,
-        sameSite: "lax",
-        secure: process.env.NODE_ENV === "production",
-        maxAge: 1000 * 60 * 60 * 24 * 30,
-      },
-    }),
-  );
+        createTableIfMissing: false, // 我们已经在 init-db.ts 中创建了表
+      });
+      console.log("Using PostgreSQL session store");
+    } catch (err) {
+      console.error("Failed to setup PostgreSQL session store, falling back to MemoryStore:", err);
+      // 如果设置失败，继续使用默认的 MemoryStore（会有警告，但不影响功能）
+    }
+  } else {
+    console.log("Using MemoryStore for sessions (development mode)");
+  }
+  
+  app.use(session(sessionConfig));
 
   app.use(passport.initialize());
   app.use(passport.session());

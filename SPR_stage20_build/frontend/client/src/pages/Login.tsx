@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { api } from "@backend/shared/routes";
 
-async function postJson(path: string, body: any) {
+async function postJson<T = unknown>(path: string, body: Record<string, unknown>): Promise<T> {
   const res = await fetch(path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -14,11 +14,11 @@ async function postJson(path: string, body: any) {
     body: JSON.stringify(body),
   });
   
-  let data: any = {};
+  let data: { message?: string; error?: string; [key: string]: unknown } = {};
   try {
     const text = await res.text();
     if (text) {
-      data = JSON.parse(text);
+      data = JSON.parse(text) as typeof data;
     }
   } catch {
     // If response is not JSON, use empty object
@@ -29,7 +29,7 @@ async function postJson(path: string, body: any) {
     throw new Error(errorMsg);
   }
   
-  return data;
+  return data as T;
 }
 
 export default function Login() {
@@ -43,15 +43,16 @@ export default function Login() {
   async function onSubmit() {
     try {
       if (mode === "register") {
-        const data = await postJson(api.auth.register.path, { email, password });
+        const data = await postJson<{ apiToken: string; email: string }>(api.auth.register.path, { email, password });
         toast({ title: "Registered", description: `Token: ${data.apiToken}` });
       } else {
-        const data = await postJson(api.auth.login.path, { email, password });
+        const data = await postJson<{ apiToken: string; email: string }>(api.auth.login.path, { email, password });
         toast({ title: "Logged in", description: `Token: ${data.apiToken}` });
       }
       setLocation("/");
-    } catch (e: any) {
-      toast({ title: "Auth failed", description: e?.message || "Unknown error", variant: "destructive" });
+    } catch (e) {
+      const errorMessage = e instanceof Error ? e.message : "Unknown error";
+      toast({ title: "Auth failed", description: errorMessage, variant: "destructive" });
     }
   }
 

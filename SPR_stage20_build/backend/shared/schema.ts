@@ -102,8 +102,9 @@ export const prompts = pgTable("prompts", {
 export const insertPromptSchema = createInsertSchema(prompts).omit({ 
   id: true, 
   createdAt: true,
-  deletedAt: true 
-}).omit({ userId: true }).extend({
+  deletedAt: true,
+  userId: true
+}).extend({
   meta: promptMetaSchema,
   analysis: promptAnalysisSchema,
 });

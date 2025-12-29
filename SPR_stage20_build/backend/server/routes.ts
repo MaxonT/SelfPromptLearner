@@ -222,7 +222,7 @@ app.get(api.account.exportCsv.path, requireUser, async (req, res) => {
     const header = ["id","createdAt","site","pageUrl","conversationId","promptText","deviceId","clientEventId","promptHash","taskType","intent","riskFlag","tags"].join(",") + "\n";
     res.write(header);
 
-    const esc = (s: any) => {
+    const esc = (s: unknown) => {
       const v = (s ?? "").toString().replace(/"/g, '""');
       return '"' + v + '"';
     };

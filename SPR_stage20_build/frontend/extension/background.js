@@ -564,11 +564,8 @@ async function runSyncCycle(reason) {
         it.lastError = result.error;
         it.updatedAt = new Date().toISOString();
         it.attempts = (it.attempts || 0) + 1;
-        it.state = p.syncStatus === 'dead' ? 'failed' : 'failed';
-        it.lastError = result.error;
         it.nextRetryAt = p.nextRetryAt;
         it.lastRequestId = result.requestId || null;
-        it.updatedAt = new Date().toISOString();
         pushLog('error', 'Sync failed', { localId: p.localId, attempts: p.syncAttempts, error: result.error, requestId: it.lastRequestId });
       }
     }

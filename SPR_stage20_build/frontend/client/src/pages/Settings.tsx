@@ -45,8 +45,9 @@ export default function Settings() {
       if (!res.ok) throw new Error("Rotate failed");
       toast({ title: "Token rotated", description: "Update the Extension with the new token." });
       me.refetch();
-    } catch (e: any) {
-      toast({ title: "Rotate failed", description: e?.message || "Unknown error", variant: "destructive" });
+    } catch (e) {
+      const errorMessage = e instanceof Error ? e.message : "Unknown error";
+      toast({ title: "Rotate failed", description: errorMessage, variant: "destructive" });
     }
   }
 

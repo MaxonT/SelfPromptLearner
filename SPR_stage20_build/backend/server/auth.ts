@@ -82,18 +82,18 @@ export function setupAuth(app: Express) {
         }
         return done(null, { id: user.id, email: user.email });
       } catch (err) {
-        return done(err as any);
+        return done(err instanceof Error ? err : new Error(String(err)));
       }
     }),
   );
 
-  passport.serializeUser((user: any, done) => done(null, user.id));
+  passport.serializeUser((user: Express.User, done) => done(null, user.id));
   passport.deserializeUser(async (id: string, done) => {
     try {
       // Minimal: we only need id; email/token fetched in /me
       return done(null, { id });
     } catch (err) {
-      return done(err as any);
+      return done(err instanceof Error ? err : new Error(String(err)));
     }
   });
 }

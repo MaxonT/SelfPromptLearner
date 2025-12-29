@@ -19,7 +19,7 @@ export interface IStorage {
   getUserByToken(apiToken: string): Promise<{ id: string; email: string; apiToken: string } | undefined>;
   getUserById(userId: string): Promise<{ id: string; email: string; apiToken: string } | undefined>;
   rotateUserToken(userId: string, apiToken: string): Promise<string>;
-  exportUserPromptsJson(userId: string): Promise<any>;
+  exportUserPromptsJson(userId: string): Promise<{ exportedAt: string; prompts: Prompt[] }>;
   exportUserPromptsCsv(userId: string): Promise<string>;
   deleteAllUserData(userId: string): Promise<void>;
 
@@ -59,39 +59,40 @@ export interface IStorage {
     updatedAt: string;
   }>>;
   enqueueExtensionCommand(userId: string, command: string, deviceId?: string | null, payload?: Record<string, any> | null): Promise<void>;
-  consumeExtensionCommands(userId: string, deviceId: string): Promise<Array<{ id: string; command: string; payload: any }>>;
+  consumeExtensionCommands(userId: string, deviceId: string): Promise<Array<{ id: string; command: string; payload: Record<string, unknown> | null }>>;
 }
 
 export class DatabaseStorage implements IStorage {
   async getPrompts(userId: string, params?: PromptsQueryParams) {
-    const conditions: any[] = [eq(prompts.userId, userId), sql`${prompts.deletedAt} IS NULL`];
+    const baseConditions = [eq(prompts.userId, userId), sql`${prompts.deletedAt} IS NULL`];
+    const additionalConditions = [];
+    
     if (params?.search) {
-      conditions.push(ilike(prompts.promptText, `%${params.search}%`));
+      additionalConditions.push(ilike(prompts.promptText, `%${params.search}%`));
     }
     if (params?.site && params.site !== 'all') {
-      conditions.push(eq(prompts.site, params.site));
+      additionalConditions.push(eq(prompts.site, params.site));
     }
     if (params?.tag && params.tag !== 'all') {
-      conditions.push(sql`${prompts.tags} @> ARRAY[${params.tag}]::text[]`);
+      additionalConditions.push(sql`${prompts.tags} @> ARRAY[${params.tag}]::text[]`);
     }
     if (params?.taskType && params.taskType !== 'all') {
       const json = JSON.stringify({ taxonomy: { taskType: [params.taskType] } });
-      conditions.push(sql`${prompts.analysis} @> ${json}::jsonb`);
+      additionalConditions.push(sql`${prompts.analysis} @> ${json}::jsonb`);
     }
     if (params?.intent && params.intent !== 'all') {
       const json = JSON.stringify({ taxonomy: { intent: [params.intent] } });
-      conditions.push(sql`${prompts.analysis} @> ${json}::jsonb`);
+      additionalConditions.push(sql`${prompts.analysis} @> ${json}::jsonb`);
     }
     if (params?.riskFlag && params.riskFlag !== 'all') {
       const json = JSON.stringify({ taxonomy: { riskFlags: [params.riskFlag] } });
-      conditions.push(sql`${prompts.analysis} @> ${json}::jsonb`);
+      additionalConditions.push(sql`${prompts.analysis} @> ${json}::jsonb`);
     }
 
     const limit = Math.min(Math.max(params?.limit ?? 24, 1), 200);
     const offset = Math.max(params?.offset ?? 0, 0);
 
-    const baseConditions = [eq(prompts.userId, userId), sql`${prompts.deletedAt} IS NULL`];
-    const allConditions = conditions.length > 0 ? [...baseConditions, ...conditions] : baseConditions;
+    const allConditions = [...baseConditions, ...additionalConditions];
     const whereClause = and(...allConditions);
 
     const [{ count }] = await db
@@ -122,7 +123,7 @@ export class DatabaseStorage implements IStorage {
     async createPrompt(userId: string, prompt: InsertPrompt): Promise<Prompt> {
     const __ingestNow = new Date();
     if (!prompt.analysis) {
-      prompt.analysis = analyzePromptText(prompt.promptText) as any;
+      prompt.analysis = analyzePromptText(prompt.promptText) as InsertPrompt['analysis'];
     }
 
     // Idempotency: (deviceId, clientEventId) should uniquely identify a client event.
@@ -274,7 +275,14 @@ export class DatabaseStorage implements IStorage {
     const riskFlags = new Set<string>();
 
     for (const r of rows) {
-      const tax = (r.analysis as any)?.taxonomy;
+      const analysis = r.analysis as {
+        taxonomy?: {
+          taskType?: string[];
+          intent?: string[];
+          riskFlags?: string[];
+        };
+      } | null | undefined;
+      const tax = analysis?.taxonomy;
       (tax?.taskType ?? []).forEach((x: string) => x && taskTypes.add(x));
       (tax?.intent ?? []).forEach((x: string) => x && intents.add(x));
       (tax?.riskFlags ?? []).forEach((x: string) => x && riskFlags.add(x));
@@ -380,7 +388,7 @@ export class DatabaseStorage implements IStorage {
   async exportUserPromptsCsv(userId: string) {
     const rows = await db.select().from(prompts).where(and(eq(prompts.userId, userId), sql`${prompts.deletedAt} IS NULL`)).orderBy(desc(prompts.createdAt));
     const header = ["id","createdAt","site","pageUrl","promptText","tags","deviceId","clientEventId"].join(",");
-    const escape = (v: any) => {
+    const escape = (v: unknown) => {
       const s = String(v ?? "");
       const needs = /[",\n]/.test(s);
       const t = s.replace(/"/g, '""');

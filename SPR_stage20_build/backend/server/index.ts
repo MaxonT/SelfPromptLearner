@@ -110,6 +110,7 @@ app.use((req, res, next) => {
 
   if (isAllowed) {
     res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Access-Control-Allow-Credentials", "true");
     res.setHeader("Vary", "Origin");
   }
 

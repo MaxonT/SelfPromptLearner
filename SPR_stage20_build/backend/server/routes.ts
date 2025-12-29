@@ -48,41 +48,68 @@ export async function registerRoutes(
 
 
   // Auth: Register
-  app.post(api.auth.register.path, async (req, res) => {
-    const input = api.auth.register.input.parse(req.body);
-    const existing = await storage.getUserByEmail(input.email);
-    if (existing) return res.status(400).json({ message: "Email already in use" });
+  app.post(api.auth.register.path, async (req, res, next) => {
+    try {
+      const input = api.auth.register.input.parse(req.body);
+      const existing = await storage.getUserByEmail(input.email);
+      if (existing) return res.status(400).json({ message: "Email already in use" });
 
-    const passwordHash = hashPassword(input.password);
-    const apiToken = newApiToken();
-    const user = await storage.createUser(input.email, passwordHash, apiToken);
+      const passwordHash = hashPassword(input.password);
+      const apiToken = newApiToken();
+      const user = await storage.createUser(input.email, passwordHash, apiToken);
 
-    // establish session
-    await new Promise<void>((resolve, reject) => {
-      // @ts-ignore
-      req.login({ id: user.id }, (err) => err ? reject(err) : resolve());
-    });
+      // establish session
+      await new Promise<void>((resolve, reject) => {
+        // @ts-ignore
+        req.login({ id: user.id }, (err) => err ? reject(err) : resolve());
+      });
 
-    return res.status(201).json({ ok: true, apiToken: user.apiToken, email: user.email });
+      return res.status(201).json({ ok: true, apiToken: user.apiToken, email: user.email });
+    } catch (err: any) {
+      console.error("Register error:", err);
+      if (err.name === "ZodError") {
+        return res.status(400).json({ message: "Invalid input", errors: err.errors });
+      }
+      return next(err);
+    }
   });
 
   // Auth: Login
   app.post(api.auth.login.path, (req, res, next) => {
-    const input = api.auth.login.input.parse(req.body);
-    req.body.email = input.email;
-    req.body.password = input.password;
+    try {
+      const input = api.auth.login.input.parse(req.body);
+      req.body.email = input.email;
+      req.body.password = input.password;
 
-    passport.authenticate("local", async (err: any, user: any) => {
-      if (err) return next(err);
-      if (!user) return res.status(401).json({ message: "Invalid credentials" });
+      passport.authenticate("local", async (err: any, user: any) => {
+        if (err) {
+          console.error("Login passport error:", err);
+          return next(err);
+        }
+        if (!user) return res.status(401).json({ message: "Invalid credentials" });
 
-      // @ts-ignore
-      req.login(user, async (err2) => {
-        if (err2) return next(err2);
-        const full = await storage.getUserByEmail(input.email);
-        return res.json({ ok: true, apiToken: full?.apiToken ?? "", email: input.email });
-      });
-    })(req, res, next);
+        // @ts-ignore
+        req.login(user, async (err2) => {
+          if (err2) {
+            console.error("Login session error:", err2);
+            return next(err2);
+          }
+          try {
+            const full = await storage.getUserByEmail(input.email);
+            return res.json({ ok: true, apiToken: full?.apiToken ?? "", email: input.email });
+          } catch (dbErr: any) {
+            console.error("Login database error:", dbErr);
+            return next(dbErr);
+          }
+        });
+      })(req, res, next);
+    } catch (err: any) {
+      console.error("Login parse error:", err);
+      if (err.name === "ZodError") {
+        return res.status(400).json({ message: "Invalid input", errors: err.errors });
+      }
+      return next(err);
+    }
   });
 
   // Auth: Logout

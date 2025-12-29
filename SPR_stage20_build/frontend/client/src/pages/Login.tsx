@@ -13,8 +13,22 @@ async function postJson(path: string, body: any) {
     credentials: "include",
     body: JSON.stringify(body),
   });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data?.message || "Request failed");
+  
+  let data: any = {};
+  try {
+    const text = await res.text();
+    if (text) {
+      data = JSON.parse(text);
+    }
+  } catch {
+    // If response is not JSON, use empty object
+  }
+  
+  if (!res.ok) {
+    const errorMsg = data?.message || data?.error || `Request failed with status ${res.status}`;
+    throw new Error(errorMsg);
+  }
+  
   return data;
 }
 

@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@backend/shared/routes";
@@ -15,9 +15,14 @@ export function AuthGate({ children }: { children: ReactNode }) {
     },
   });
 
+  useEffect(() => {
+    if (q.data === null && !q.isLoading) {
+      setLocation("/login");
+    }
+  }, [q.data, q.isLoading, setLocation]);
+
   if (q.isLoading) return <div className="p-6">Loading…</div>;
   if (q.data === null) {
-    setTimeout(() => setLocation("/login"), 0);
     return <div className="p-6">Redirecting…</div>;
   }
   return <>{children}</>;

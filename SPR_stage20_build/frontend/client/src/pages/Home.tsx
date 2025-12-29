@@ -185,7 +185,7 @@ export default function Home() {
               </SelectContent>
             </Select>
 
-            <Select value={sortBy} onValueChange={(v: any) => { setSortBy(v); setPage(0); }}>
+            <Select value={sortBy} onValueChange={(v: "date" | "clarity") => { setSortBy(v); setPage(0); }}>
               <SelectTrigger className="w-full md:w-40 bg-black/20 border-white/10">
                 <SelectValue placeholder="Sort By" />
               </SelectTrigger>

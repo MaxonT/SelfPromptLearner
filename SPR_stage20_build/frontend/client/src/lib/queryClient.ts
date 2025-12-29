@@ -26,9 +26,9 @@ export async function apiRequest(
 type UnauthorizedBehavior = "returnNull" | "throw";
 export const getQueryFn: <T>(options: {
   on401: UnauthorizedBehavior;
-}) => QueryFunction<T> =
-  ({ on401: unauthorizedBehavior }) =>
-  async ({ queryKey }) => {
+}) => QueryFunction<T | null> =
+  <T>({ on401: unauthorizedBehavior }: { on401: UnauthorizedBehavior }) =>
+  async ({ queryKey }): Promise<T | null> => {
     const res = await fetch(queryKey.join("/") as string, {
       credentials: "include",
     });
@@ -38,7 +38,7 @@ export const getQueryFn: <T>(options: {
     }
 
     await throwIfResNotOk(res);
-    return await res.json();
+    return await res.json() as T;
   };
 
 export const queryClient = new QueryClient({

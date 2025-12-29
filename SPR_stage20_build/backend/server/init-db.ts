@@ -8,7 +8,7 @@ import { log } from "./index";
 export async function initDatabase(): Promise<void> {
   try {
     // 检查 users 表是否存在
-    const result = await pool.query(`
+    const tableCheck = await pool.query(`
       SELECT EXISTS (
         SELECT FROM information_schema.tables 
         WHERE table_schema = 'public' 
@@ -16,13 +16,37 @@ export async function initDatabase(): Promise<void> {
       );
     `);
 
-    const exists = result.rows[0]?.exists;
-    if (exists) {
-      log("数据库表已存在，跳过初始化", "init-db");
-      return;
-    }
+    const tableExists = tableCheck.rows[0]?.exists;
+    
+    if (tableExists) {
+      // 检查表结构是否正确（检查是否有 id 列）
+      const columnCheck = await pool.query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.columns 
+          WHERE table_schema = 'public' 
+          AND table_name = 'users'
+          AND column_name = 'id'
+        );
+      `);
 
-    log("开始初始化数据库表...", "init-db");
+      const columnExists = columnCheck.rows[0]?.exists;
+      
+      if (columnExists) {
+        log("数据库表已存在且结构正确，跳过初始化", "init-db");
+        return;
+      } else {
+        // 表存在但结构不正确，需要删除并重建
+        log("检测到表结构不正确，将删除旧表并重新创建...", "init-db");
+        await pool.query('DROP TABLE IF EXISTS user_sessions CASCADE;');
+        await pool.query('DROP TABLE IF EXISTS extension_commands CASCADE;');
+        await pool.query('DROP TABLE IF EXISTS extension_status CASCADE;');
+        await pool.query('DROP TABLE IF EXISTS prompts CASCADE;');
+        await pool.query('DROP TABLE IF EXISTS users CASCADE;');
+        log("已删除旧表，开始重新创建...", "init-db");
+      }
+    } else {
+      log("数据库表不存在，开始初始化...", "init-db");
+    }
 
     // 创建 users 表
     await pool.query(`
@@ -137,7 +161,13 @@ export async function initDatabase(): Promise<void> {
       log("数据库表已存在，跳过初始化", "init-db");
       return;
     }
-    log(`数据库初始化错误: ${err?.message || String(err)}`, "init-db");
+    // 如果是列不存在的错误，说明表结构有问题
+    if (err?.code === '42703' || err?.message?.includes('does not exist')) {
+      log(`数据库表结构错误: ${err?.message || String(err)}。请检查表结构或删除旧表后重新初始化。`, "init-db");
+      // 不抛出错误，让应用继续启动，但记录警告
+    } else {
+      log(`数据库初始化错误: ${err?.message || String(err)}`, "init-db");
+    }
     // 不抛出错误，让应用继续启动（表可能已经存在）
   }
 }

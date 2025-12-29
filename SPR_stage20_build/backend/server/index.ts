@@ -58,7 +58,7 @@ app.use((req, res, next) => {
     (req.headers["x-request-id"] as string) ||
     crypto.randomUUID?.() ||
     crypto.randomBytes(16).toString("hex");
-  (req as any).requestId = rid;
+  req.requestId = rid;
   res.setHeader("X-Request-Id", rid);
   next();
 });
@@ -128,7 +128,7 @@ export function log(message: string, source = "express") {
 // Structured request log (API only)
 app.use((req, res, next) => {
   const start = Date.now();
-  const requestId = (req as any).requestId;
+  const requestId = req.requestId;
 
   res.on("finish", () => {
     if (!req.path.startsWith("/api")) return;
@@ -140,7 +140,7 @@ app.use((req, res, next) => {
       path: req.path,
       statusCode: res.statusCode,
       durationMs,
-      userId: (req as any).user?.id,
+      userId: req.user?.id,
     });
   });
 
@@ -243,7 +243,7 @@ function validateEnv() {
   const port = parseInt(process.env.PORT || "5000", 10);
   
   // reusePort 在 Node 22+ macOS 上可能不支持，只在生产环境且明确需要时启用
-  const listenOptions: any = {
+  const listenOptions: { port: number; host: string; reusePort?: boolean } = {
     port,
     host: "0.0.0.0",
   };
@@ -263,7 +263,7 @@ function validateEnv() {
 
 // Final error handler with request id
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-  const requestId = (_req as any).requestId;
+  const requestId = _req.requestId;
   try {
     sentryCapture?.(err, { tags: { requestId } });
   } catch {

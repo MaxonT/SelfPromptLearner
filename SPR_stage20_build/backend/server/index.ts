@@ -173,6 +173,15 @@ app.use((req, res, next) => {
     }
   }
 
+  // 自动初始化数据库表（如果不存在）
+  try {
+    const { initDatabase } = await import("./init-db");
+    await initDatabase();
+  } catch (err) {
+    console.error("数据库初始化失败:", err);
+    // 继续启动，表可能已经存在
+  }
+
   await registerRoutes(httpServer, app);
 
   // important: vite only in development, after routes

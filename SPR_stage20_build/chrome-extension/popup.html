@@ -1,20 +1,62 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8" />
+  <meta charset="utf-8">
   <title>Prompt Mirror</title>
-  <style>
-    body { font-family: system-ui; font-size: 14px; padding: 12px; width: 200px; display: flex; flex-direction: column; gap: 8px; }
-    button { padding: 6px; cursor: pointer; background: #f0f0f0; border: 1px solid #ccc; border-radius: 4px; }
-    button:hover { background: #e0e0e0; }
-    #scan { background: #e3f2fd; border-color: #2196f3; color: #0d47a1; }
-    #count { font-weight: bold; text-align: center; margin-bottom: 4px; }
-  </style>
+  <link rel="stylesheet" href="style.css">
+  <script src="libs/chart.umd.js"></script>
 </head>
 <body>
-  <div id="count">已收集 <span>0</span> 条</div>
-  <button id="scan">🔍 扫描当前页面</button>
-  <button id="export">📥 导出文本</button>
+  <header>
+    <h1><span>🔮</span> Prompt Mirror</h1>
+    <div class="actions">
+      <button id="scan-btn" title="扫描当前页面">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+        </svg>
+      </button>
+      <button id="export-btn" title="导出数据">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <!-- KPI Cards -->
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">今日收集</div>
+        <div class="kpi-value" id="today-count">0</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">总计 Prompt</div>
+        <div class="kpi-value" id="total-count">0</div>
+      </div>
+    </div>
+
+    <!-- Charts Tabs -->
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="radar">能力雷达</button>
+      <button class="tab-btn" data-tab="pie">类型分布</button>
+    </div>
+
+    <!-- Chart Canvas -->
+    <div class="chart-container">
+      <canvas id="mainChart"></canvas>
+    </div>
+
+    <!-- Recent List -->
+    <div class="list-header">
+      <h2>最近记录</h2>
+      <span style="font-size:12px;color:#999" id="last-sync">Just now</span>
+    </div>
+    <div class="prompt-list" id="recent-list">
+      <!-- Items will be injected here -->
+    </div>
+  </main>
+
   <script src="popup.js"></script>
 </body>
 </html>

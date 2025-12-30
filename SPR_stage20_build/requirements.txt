@@ -3,3 +3,4 @@ pandas
 jieba
 matplotlib
 wordcloud
+plotly

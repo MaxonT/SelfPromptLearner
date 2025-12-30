@@ -98,8 +98,8 @@ export default function Login() {
       // 刷新认证状态查询，确保 AuthGate 能检测到登录状态
       await queryClient.invalidateQueries({ queryKey: ["me"] });
       
-      // 等待一下确保状态更新
-      await new Promise(resolve => setTimeout(resolve, 200));
+      // 给足够时间让 session cookie 被设置和保存
+      await new Promise(resolve => setTimeout(resolve, 500));
       
       setLocation("/");
     } catch (e) {

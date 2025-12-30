@@ -74,7 +74,14 @@ export async function registerRoutes(
             log(`Session login error during register: ${err.message}`, "auth");
             return reject(err);
           }
-          resolve();
+          // Explicitly save session to ensure it's committed before response
+          req.session.save((saveErr) => {
+            if (saveErr) {
+              log(`Session save error during register: ${saveErr.message}`, "auth");
+              return reject(saveErr);
+            }
+            resolve();
+          });
         });
       });
 
@@ -110,13 +117,20 @@ export async function registerRoutes(
             log(`Login session error: ${err2.message || String(err2)}`, "auth");
             return sendError(res, req, 500, "SESSION_ERROR", err2.message || "Session creation failed");
           }
-          try {
-            const full = await storage.getUserByEmail(input.email);
-            return res.json({ ok: true, apiToken: full?.apiToken ?? "", email: input.email });
-          } catch (dbErr: any) {
-            log(`Login database error: ${dbErr.message || String(dbErr)}`, "auth");
-            return sendError(res, req, 500, "DB_ERROR", dbErr.message || "Database error");
-          }
+          // Explicitly save session to ensure it's committed before response
+          req.session.save(async (saveErr) => {
+            if (saveErr) {
+              log(`Session save error during login: ${saveErr.message}`, "auth");
+              return sendError(res, req, 500, "SESSION_SAVE_ERROR", saveErr.message || "Session save failed");
+            }
+            try {
+              const full = await storage.getUserByEmail(input.email);
+              return res.json({ ok: true, apiToken: full?.apiToken ?? "", email: input.email });
+            } catch (dbErr: any) {
+              log(`Login database error: ${dbErr.message || String(dbErr)}`, "auth");
+              return sendError(res, req, 500, "DB_ERROR", dbErr.message || "Database error");
+            }
+          });
         });
       })(req, res, next);
     } catch (err: any) {

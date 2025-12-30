@@ -3,11 +3,18 @@
 <head>
   <meta charset="utf-8" />
   <title>Prompt Mirror</title>
-  <style>body{font-family:system-ui;font-size:14px;padding:12px;width:180px}</style>
+  <style>
+    body { font-family: system-ui; font-size: 14px; padding: 12px; width: 200px; display: flex; flex-direction: column; gap: 8px; }
+    button { padding: 6px; cursor: pointer; background: #f0f0f0; border: 1px solid #ccc; border-radius: 4px; }
+    button:hover { background: #e0e0e0; }
+    #scan { background: #e3f2fd; border-color: #2196f3; color: #0d47a1; }
+    #count { font-weight: bold; text-align: center; margin-bottom: 4px; }
+  </style>
 </head>
 <body>
   <div id="count">已收集 <span>0</span> 条</div>
-  <button id="export">导出文本</button>
+  <button id="scan">🔍 扫描当前页面</button>
+  <button id="export">📥 导出文本</button>
   <script src="popup.js"></script>
 </body>
 </html>

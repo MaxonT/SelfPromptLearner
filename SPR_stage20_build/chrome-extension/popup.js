@@ -1,16 +1,19 @@
 // popup.js
 
-// 1. 核心分类逻辑 (JS版)
+// 1. 核心分类逻辑 (JS版 - 增强版)
 const CATEGORIES = {
-  "💻 编程": ["代码", "code", "函数", "报错", "bug", "python", "js", "react", "sql", "api", "写一个", "实现"],
-  "📝 创作": ["文案", "文章", "周报", "总结", "扩写", "润色", "大纲", "标题", "翻译", "邮件"],
-  "🧠 逻辑": ["分析", "原因", "区别", "比较", "评价", "优缺点", "建议", "方案", "思维导图"],
-  "🎓 学习": ["解释", "介绍", "是什么", "含义", "原理", "教程", "学习", "如何"],
-  "🎨 创意": ["创意", "点子", "故事", "设想", "如果", "生成", "设计"]
+  "🎓 学习": ["解释", "介绍", "是什么", "含义", "原理", "教程", "学习", "如何", "概念", "区别", "对比", "分析"],
+  "💻 编程": ["代码", "code", "函数", "报错", "bug", "python", "js", "react", "sql", "api", "写一个", "实现", "调试", "优化", "重构", "架构", "终端", "命令"],
+  "📝 创作": ["文案", "文章", "周报", "总结", "扩写", "润色", "大纲", "标题", "翻译", "邮件", "改写", "风格", "续写"],
+  "🧠 逻辑": ["原因", "评价", "优缺点", "建议", "方案", "思维导图", "流程", "推演", "逻辑", "批判"],
+  "🎨 创意": ["创意", "点子", "故事", "设想", "如果", "生成", "设计", "配色", "Logo", "灵感", "脑暴"]
 };
 
 const classify = (text) => {
   text = text.toLowerCase();
+  // 优先匹配学习类（How/What），避免被代码关键词误导
+  if (CATEGORIES["🎓 学习"].some(k => text.includes(k)) && !text.includes("代码")) return "🎓 学习";
+  
   for (const [cat, keywords] of Object.entries(CATEGORIES)) {
     if (keywords.some(k => text.includes(k))) return cat;
   }
@@ -36,7 +39,32 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   document.getElementById('scan-btn').onclick = handleScan;
   document.getElementById('export-btn').onclick = handleExport;
+  document.getElementById('theme-btn').onclick = toggleTheme;
+  document.getElementById('main-site-btn').onclick = () => {
+    chrome.tabs.create({ url: 'http://localhost:8501' });
+  };
+  
+  // 初始化主题
+  initTheme();
 });
+
+// --- 主题管理 ---
+function initTheme() {
+  const saved = localStorage.getItem('theme');
+  const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  
+  if (saved === 'dark' || (!saved && systemDark)) {
+    document.documentElement.setAttribute('data-theme', 'dark');
+  }
+}
+
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme');
+  const target = current === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', target);
+  localStorage.setItem('theme', target);
+  renderChart(); // 重绘图表以适配颜色
+}
 
 // --- 数据加载 ---
 async function loadData() {
@@ -60,17 +88,23 @@ function renderList() {
     listEl.innerHTML = `
       <div class="empty-state">
         <div class="empty-icon">👻</div>
-        <div>还没有数据，快去 ChatGPT 页面点击扫描吧！</div>
+        <div style="margin-bottom:8px">还没有数据...</div>
+        <div style="font-size:12px;color:var(--primary);display:flex;align-items:center;justify-content:center;gap:4px">
+          点击右上角扫描 
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M7 17L17 7M17 7H7M17 7V17"></path>
+          </svg>
+        </div>
       </div>`;
     return;
   }
 
-  listEl.innerHTML = allPrompts.slice(0, 5).map(p => {
+  listEl.innerHTML = allPrompts.slice(0, 5).map((p, index) => {
     const cat = classify(p.text);
     const date = new Date(p.ts);
     const timeStr = date.getHours().toString().padStart(2,'0') + ':' + date.getMinutes().toString().padStart(2,'0');
     return `
-      <div class="prompt-item">
+      <div class="prompt-item" id="item-${index}">
         <div class="prompt-text">${escapeHtml(p.text)}</div>
         <div class="prompt-meta">
           <span class="tag">${cat}</span>
@@ -79,6 +113,13 @@ function renderList() {
       </div>
     `;
   }).join('');
+
+  // 绑定点击事件 (Fix CSP Issue)
+  allPrompts.slice(0, 5).forEach((_, index) => {
+    document.getElementById(`item-${index}`).onclick = function() {
+      this.classList.toggle('expanded');
+    };
+  });
 }
 
 // --- 渲染图表 ---
@@ -100,6 +141,10 @@ function renderChart() {
   const data = labels.map(k => stats[k]);
 
   // Chart.js 配置
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const textColor = isDark ? '#e0e0e0' : '#666';
+  const gridColor = isDark ? '#333' : '#eee';
+
   const config = {
     type: currentTab === 'radar' ? 'radar' : 'doughnut',
     data: {
@@ -112,20 +157,26 @@ function renderChart() {
           : ['#3a86ff', '#8338ec', '#ff006e', '#fb5607', '#ffbe0b'],
         borderColor: '#3a86ff',
         borderWidth: 2,
-        pointBackgroundColor: '#fff'
+        pointBackgroundColor: isDark ? '#1e1e1e' : '#fff'
       }]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { display: currentTab !== 'radar', position: 'right' }
+        legend: { 
+          display: currentTab !== 'radar', 
+          position: 'right',
+          labels: { color: textColor }
+        }
       },
       scales: currentTab === 'radar' ? {
         r: {
           beginAtZero: true,
           ticks: { display: false },
-          pointLabels: { font: { size: 12 } }
+          pointLabels: { font: { size: 12 }, color: textColor },
+          grid: { color: gridColor },
+          angleLines: { color: gridColor }
         }
       } : {}
     }

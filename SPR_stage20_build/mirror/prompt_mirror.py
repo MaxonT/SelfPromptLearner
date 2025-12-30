@@ -2,130 +2,231 @@ import streamlit as st
 import pandas as pd
 import jieba
 import re
-import io
+import json
 import matplotlib.pyplot as plt
+import numpy as np
 from wordcloud import WordCloud
 from collections import Counter
-import streamlit.components.v1 as components
+from datetime import datetime
 
 # 页面配置
-st.set_page_config(page_title="我的 Prompt 画像", layout="centered")
-st.title("📊 我的 Prompt 自画像")
+st.set_page_config(page_title="SPR - 你的 Prompt 画像", layout="wide", page_icon="🔮")
 
-# 1. 注入 JS 接收插件数据
-components.html("""
-<button id="load" style="background:#4CAF50;color:white;padding:10px 20px;border:none;border-radius:4px;cursor:pointer;font-size:16px;">🔄 从插件导入数据</button>
-<span id="status" style="margin-left:10px;color:#666;"></span>
-<script>
-document.getElementById('load').onclick = async () => {
-  try {
-    const { prompts } = await chrome.storage.local.get('prompts');
-    if (!prompts || prompts.length === 0) {
-        document.getElementById('status').innerText = '未找到数据，请先使用插件收集';
-        return;
-    }
-    const texts = prompts.map(p => p.text).join('\\n===SPLIT===\\n');
-    window.parent.postMessage({type: 'setPrompts', texts: texts}, '*');
-    document.getElementById('status').innerText = `已导入 ${prompts.length} 条`;
-  } catch (e) {
-    document.getElementById('status').innerText = '请在 Chrome 中安装插件后使用';
-  }
-};
-</script>
-""", height=80)
+st.markdown("""
+<style>
+    .main .block-container { padding-top: 2rem; }
+    h1 { color: #2c3e50; }
+    h3 { color: #34495e; font-size: 1.2rem; }
+    .stMetric { background-color: #f8f9fa; padding: 10px; border-radius: 8px; border: 1px solid #eee; }
+</style>
+""", unsafe_allow_html=True)
 
-# 2. 接收数据（Streamlit 无法直接读 postMessage，这里提供备用手动入口 + 说明）
-# 注意：Streamlit 原生不支持直接从前端 JS 传变量给 Python 后端而不刷新。
-# 为了最简 MVP，我们保留“拖入文件”作为兜底，同时把“从插件导入”做成剪贴板中转或者提示。
-# 修正方案：由于 Chrome Extension 无法直接跨域写 Streamlit 页面，最稳妥的 MVP 是：
-# 插件 -> 导出 txt -> 用户拖入 txt。上面的 JS 按钮更多是演示或需配合 userscript。
-# 为了“零粘贴”体验，我们可以让 JS 把内容写入剪贴板，然后 Python 读剪贴板（如果部署在本地）。
-# 但最稳妥的还是文件拖拽。我们先保留文件拖拽作为核心。
+st.title("🔮 SPR 镜像版：看见你的思维习惯")
 
-st.info("💡 使用方式：在浏览器点击插件图标 -> [导出文本] -> 将下载的 txt 拖入下方")
+# 侧边栏：上传
+with st.sidebar:
+    st.header("📤 数据导入")
+    st.info("请使用 Chrome 插件导出的 `my_prompts.json` 文件")
+    up = st.file_uploader("拖入文件", type=["json", "txt", "jsonl"])
+    
+    st.markdown("---")
+    st.markdown("### 隐私说明")
+    st.caption("所有计算均在本地完成，数据不上传云端。")
 
-up = st.file_uploader("上传导出的 txt/json/jsonl", type=["txt", "json", "jsonl"])
+# 数据加载逻辑
 lines = []
+timestamps = []
+sources = []
 
 if up:
     try:
         content = up.read().decode('utf-8', errors='ignore')
+        
+        # 1. 尝试解析新版插件 JSON [{ts, text, src}, ...]
         if up.name.endswith('.json'):
-            import json
-            data = json.loads(content)
-            # 适配 ChatGPT 导出格式
-            if isinstance(data, list):
-                for conv in data:
-                    if 'mapping' in conv:
-                        for k, v in conv['mapping'].items():
-                            if v['message'] and v['message']['author']['role'] == 'user':
-                                parts = v['message']['content']['parts']
-                                if parts: lines.append(str(parts[0]))
-        elif up.name.endswith('.jsonl'):
-            import json
-            for line in content.splitlines():
-                if line.strip():
-                    try:
-                        msg = json.loads(line)
-                        if 'messages' in msg:
-                            lines.append(msg['messages'][0]['content'])
-                    except: pass
-        else:
-            # 默认 txt，按行或分隔符
-            lines = [l.strip() for l in content.split('===SPLIT===') if l.strip()]
-            if len(lines) < 2: # 可能是普通按行
-                 lines = [l.strip() for l in content.splitlines() if l.strip()]
+            try:
+                data = json.loads(content)
+                if isinstance(data, list) and len(data) > 0:
+                    # 检查是不是插件格式
+                    if 'text' in data[0]: 
+                        for item in data:
+                            lines.append(item.get('text', ''))
+                            ts = item.get('ts', 0)
+                            if ts > 0: timestamps.append(datetime.fromtimestamp(ts / 1000))
+                            sources.append(item.get('src', 'unknown'))
+                    # 兼容 ChatGPT 官方导出
+                    elif 'mapping' in data[0]:
+                         for conv in data:
+                            if 'mapping' in conv:
+                                for k, v in conv['mapping'].items():
+                                    if v['message'] and v['message']['author']['role'] == 'user':
+                                        parts = v['message']['content']['parts']
+                                        if parts: 
+                                            lines.append(str(parts[0]))
+                                            # 官方导出包含 create_time
+                                            ct = v['message'].get('create_time')
+                                            if ct: timestamps.append(datetime.fromtimestamp(ct))
+            except json.JSONDecodeError:
+                pass # 可能是其他格式
+
+        # 2. 兼容旧版 TXT / JSONL
+        if not lines: 
+             if up.name.endswith('.jsonl'):
+                for line in content.splitlines():
+                    if line.strip():
+                        try:
+                            msg = json.loads(line)
+                            if 'messages' in msg: lines.append(msg['messages'][0]['content'])
+                        except: pass
+             else:
+                lines = [l.strip() for l in content.split('===SPLIT===') if l.strip()]
+                if len(lines) < 2:
+                     lines = [l.strip() for l in content.splitlines() if l.strip()]
+
     except Exception as e:
         st.error(f"解析失败: {e}")
 
 if not lines:
-    st.warning("👈 请先上传数据以生成画像")
+    st.info("👈 请先在左侧上传数据")
     st.stop()
 
-# 3. 统计分析
+# --- 数据预处理 ---
 df = pd.DataFrame({"prompt": lines})
 df["len"] = df["prompt"].str.len()
-df["words"] = df["prompt"].apply(lambda x: len(jieba.lcut(x)))
-df["?"] = df["prompt"].str.count(r"\?|？")
-df["!"] = df["prompt"].str.count(r"\!|！")
+if timestamps and len(timestamps) == len(lines):
+    df["time"] = timestamps
+    df["hour"] = df["time"].dt.hour
+    has_time = True
+else:
+    has_time = False
 
-# 4. 词云
+# 分词
+def get_words(text):
+    return [w for w in jieba.lcut(text) if len(w) > 1 and re.match(r"[\u4e00-\u9fa5a-zA-Z]", w)]
+
 all_text = " ".join(lines)
-words = [w for w in jieba.lcut(all_text) if len(w) > 1 and re.match(r"[\u4e00-\u9fa5a-zA-Z]", w)]
-# 字体兜底：Mac 默认 PingFang，Linux/Win 可能需要 fallback
-font_path = "PingFang.ttc"
-try:
-    open(font_path)
-except:
-    font_path = None # WordCloud 会用默认
+words = get_words(all_text)
+word_counts = Counter(words)
 
-wc = WordCloud(font_path=font_path, width=800, height=400, background_color="white", collocations=False).generate(" ".join(words))
+# --- 核心指标 ---
+c1, c2, c3, c4 = st.columns(4)
+c1.metric("累计 Prompt", f"{len(df)} 条")
+c2.metric("平均长度", f"{int(df['len'].mean())} 字")
+c3.metric("总词汇量", f"{len(word_counts)} 个")
+most_common_word = word_counts.most_common(1)[0][0] if word_counts else "无"
+c4.metric("最爱用的词", most_common_word)
 
-st.image(wc.to_array(), use_column_width=True)
+st.divider()
 
-# 5. 图表
-fig, ax = plt.subplots(1, 3, figsize=(15, 4))
+# --- 第一排：词云 & 人格雷达 ---
+col_cloud, col_radar = st.columns([1.5, 1])
 
-# Top 20 词
-top_words = Counter(words).most_common(20)
-if top_words:
-    ax[0].barh([x[0] for x in top_words[::-1]], [x[1] for x in top_words[::-1]], color="#79bd9a")
-    ax[0].set_title("Top 20 高频词")
-    # 解决中文乱码问题（简单处理）
-    plt.rcParams['font.sans-serif'] = ['Arial Unicode MS', 'SimHei'] 
+with col_cloud:
+    st.subheader("☁️ 你的思维词云")
+    font_path = "PingFang.ttc"
+    try: open(font_path) 
+    except: font_path = None
+    
+    wc = WordCloud(font_path=font_path, width=800, height=500, background_color="white", 
+                   max_words=100, collocations=False).generate(" ".join(words))
+    st.image(wc.to_array(), use_column_width=True)
 
-# 长度分布
-ax[1].hist(df["len"], bins=20, color="#ffbe0b")
-ax[1].set_title("Prompt 长度分布")
+with col_radar:
+    st.subheader("🕸️ Prompt 人格雷达")
+    
+    # 简单的关键词分类器
+    categories = {
+        "💻 编程开发": ["代码", "code", "函数", "报错", "bug", "python", "js", "react", "sql", "api", "写一个", "实现"],
+        "📝 内容创作": ["文案", "文章", "周报", "总结", "扩写", "润色", "大纲", "标题", "翻译", "邮件"],
+        "🧠 逻辑分析": ["分析", "原因", "区别", "比较", "评价", "优缺点", "建议", "方案", "思维导图"],
+        "🎓 知识学习": ["解释", "介绍", "是什么", "含义", "原理", "教程", "学习", "如何"],
+        "🎨 创意脑暴": ["创意", "点子", "故事", "设想", "如果", "生成", "设计"]
+    }
+    
+    scores = {k: 0 for k in categories}
+    for w in words:
+        w_lower = w.lower()
+        for cat, keywords in categories.items():
+            if w_lower in keywords:
+                scores[cat] += 1
+    
+    # 归一化
+    total_score = sum(scores.values()) or 1
+    labels = list(scores.keys())
+    values = [s/total_score for s in scores.values()]
+    # 闭合雷达图
+    values += values[:1]
+    angles = np.linspace(0, 2*np.pi, len(labels), endpoint=False).tolist()
+    angles += angles[:1]
+    
+    fig_radar = plt.figure(figsize=(4, 4))
+    ax = fig_radar.add_subplot(111, polar=True)
+    ax.plot(angles, values, 'o-', linewidth=2, color='#fb5607')
+    ax.fill(angles, values, alpha=0.25, color='#fb5607')
+    ax.set_xticks(angles[:-1])
+    ax.set_xticklabels(labels, fontsize=10)
+    # 隐藏y轴刻度
+    ax.set_yticklabels([])
+    ax.spines['polar'].set_visible(False)
+    st.pyplot(fig_radar)
 
-# 情绪分布
-ax[2].scatter(df["?"], df["!"], alpha=0.6, color="#fb5607")
-ax[2].set_xlabel("问号数量")
-ax[2].set_ylabel("感叹号数量")
-ax[2].set_title("情绪分布 (疑问 vs 强烈)")
+st.divider()
 
-st.pyplot(fig)
+# --- 第二排：时间分布 & 长度分布 ---
+if has_time:
+    st.subheader("📅 你的活跃时段")
+    c_time, c_len = st.columns(2)
+    
+    with c_time:
+        hour_counts = df['hour'].value_counts().sort_index()
+        # 补全 24 小时
+        for h in range(24):
+            if h not in hour_counts: hour_counts[h] = 0
+        hour_counts = hour_counts.sort_index()
+        
+        fig_time, ax_time = plt.subplots(figsize=(10, 4))
+        ax_time.bar(hour_counts.index, hour_counts.values, color='#3a86ff', alpha=0.7)
+        ax_time.set_xticks(range(0, 24, 2))
+        ax_time.set_xlabel("小时 (0-23)")
+        ax_time.set_ylabel("Prompt 数量")
+        ax_time.set_title("24小时活跃度热力")
+        ax_time.spines['top'].set_visible(False)
+        ax_time.spines['right'].set_visible(False)
+        st.pyplot(fig_time)
+        
+    with c_len:
+         fig_len, ax_len = plt.subplots(figsize=(10, 4))
+         ax_len.hist(df["len"], bins=30, color="#ffbe0b", alpha=0.8)
+         ax_len.set_title("Prompt 长度分布")
+         ax_len.set_xlabel("字符数")
+         ax_len.spines['top'].set_visible(False)
+         ax_len.spines['right'].set_visible(False)
+         st.pyplot(fig_len)
 
-# 6. 下载
-csv = df.to_csv(index=False).encode('utf-8-sig')
-st.download_button("📥 下载分析结果 CSV", csv, "prompt_analysis.csv", "text/csv")
+else:
+    st.warning("⚠️ 当前数据不包含时间信息，无法显示活跃时段分析。请使用新版插件重新导出 JSON。")
+    st.subheader("📏 Prompt 长度分布")
+    fig_len, ax_len = plt.subplots(figsize=(10, 4))
+    ax_len.hist(df["len"], bins=30, color="#ffbe0b", alpha=0.8)
+    st.pyplot(fig_len)
+
+# --- 底部：高频词组 (Bigrams) ---
+st.divider()
+st.subheader("🔗 你最爱用的短语 (Top Phrases)")
+
+# 简单的 Bigram 实现
+bigrams = []
+for line in lines:
+    line_words = get_words(line)
+    if len(line_words) >= 2:
+        for i in range(len(line_words)-1):
+            bigrams.append(f"{line_words[i]} {line_words[i+1]}")
+
+top_bigrams = Counter(bigrams).most_common(12)
+
+cols = st.columns(4)
+for i, (phrase, count) in enumerate(top_bigrams):
+    with cols[i % 4]:
+        st.button(f"{phrase} ({count})", key=f"bi_{i}", disabled=True)
+
+st.caption("基于 Jieba 分词的二元词组统计")

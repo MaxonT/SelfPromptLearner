@@ -2,22 +2,22 @@
 
 // 1. 核心分类逻辑 (JS版 - 增强版)
 const CATEGORIES = {
-  "🎓 学习": ["解释", "介绍", "是什么", "含义", "原理", "教程", "学习", "如何", "概念", "区别", "对比", "分析"],
-  "💻 编程": ["代码", "code", "函数", "报错", "bug", "python", "js", "react", "sql", "api", "写一个", "实现", "调试", "优化", "重构", "架构", "终端", "命令"],
-  "📝 创作": ["文案", "文章", "周报", "总结", "扩写", "润色", "大纲", "标题", "翻译", "邮件", "改写", "风格", "续写"],
-  "🧠 逻辑": ["原因", "评价", "优缺点", "建议", "方案", "思维导图", "流程", "推演", "逻辑", "批判"],
-  "🎨 创意": ["创意", "点子", "故事", "设想", "如果", "生成", "设计", "配色", "Logo", "灵感", "脑暴"]
+  "🎓 Learning": ["解释", "介绍", "是什么", "含义", "原理", "教程", "学习", "如何", "概念", "区别", "对比", "分析", "explain", "what", "how", "meaning", "tutorial", "learn", "concept", "diff", "analyze"],
+  "💻 Coding": ["代码", "code", "函数", "报错", "bug", "python", "js", "react", "sql", "api", "写一个", "实现", "调试", "优化", "重构", "架构", "终端", "命令", "function", "error", "implement", "debug", "optimize", "refactor"],
+  "📝 Writing": ["文案", "文章", "周报", "总结", "扩写", "润色", "大纲", "标题", "翻译", "邮件", "改写", "风格", "续写", "write", "article", "report", "summary", "expand", "polish", "outline", "title", "translate", "email", "rewrite"],
+  "🧠 Logic": ["原因", "评价", "优缺点", "建议", "方案", "思维导图", "流程", "推演", "逻辑", "批判", "reason", "evaluate", "pros", "cons", "suggest", "plan", "mindmap", "process", "logic", "critique"],
+  "🎨 Creative": ["创意", "点子", "故事", "设想", "如果", "生成", "设计", "配色", "Logo", "灵感", "脑暴", "idea", "story", "imagine", "if", "generate", "design", "color", "inspiration", "brainstorm"]
 };
 
 const classify = (text) => {
   text = text.toLowerCase();
   // 优先匹配学习类（How/What），避免被代码关键词误导
-  if (CATEGORIES["🎓 学习"].some(k => text.includes(k)) && !text.includes("代码")) return "🎓 学习";
+  if (CATEGORIES["🎓 Learning"].some(k => text.includes(k)) && !text.includes("代码") && !text.includes("code")) return "🎓 Learning";
   
   for (const [cat, keywords] of Object.entries(CATEGORIES)) {
     if (keywords.some(k => text.includes(k))) return cat;
   }
-  return "📂 其他";
+  return "📂 Other";
 };
 
 // 2. 状态管理
@@ -41,7 +41,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('export-btn').onclick = handleExport;
   document.getElementById('theme-btn').onclick = toggleTheme;
   document.getElementById('main-site-btn').onclick = () => {
-    chrome.tabs.create({ url: 'http://localhost:8501' });
+    // Determine language based on some logic or default to 'en' since UI is English
+    // We can also check if we want to sync theme, but let's start with lang
+    const lang = 'en'; 
+    chrome.tabs.create({ url: `http://localhost:8501/?lang=${lang}` });
   };
   
   // 初始化主题
@@ -130,14 +133,14 @@ function renderChart() {
   // 统计数据
   const stats = {};
   Object.keys(CATEGORIES).forEach(k => stats[k] = 0);
-  stats["📂 其他"] = 0;
+  stats["📂 Other"] = 0;
   
   allPrompts.forEach(p => {
     const cat = classify(p.text);
     stats[cat] = (stats[cat] || 0) + 1;
   });
 
-  const labels = Object.keys(stats).filter(k => k !== "📂 其他"); // 雷达图不显示其他
+  const labels = Object.keys(stats).filter(k => k !== "📂 Other"); // 雷达图不显示其他
   const data = labels.map(k => stats[k]);
 
   // Chart.js 配置

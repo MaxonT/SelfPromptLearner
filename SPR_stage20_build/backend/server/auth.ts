@@ -36,6 +36,11 @@ export function newApiToken(): string {
 }
 
 export function setupAuth(app: Express) {
+  // Tell Express we're behind a proxy (Render/NGINX/etc.) so secure cookies survive
+  // the TLS termination hop. Without this, req.secure is false and connect.sid won't
+  // be set in production, leading to login loops.
+  app.set("trust proxy", 1);
+
   // 在生产环境使用 PostgreSQL 存储 session，开发环境使用 MemoryStore
   const sessionConfig: session.SessionOptions = {
     secret: SESSION_SECRET,

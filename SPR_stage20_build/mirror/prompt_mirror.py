@@ -9,6 +9,30 @@ from wordcloud import WordCloud
 from collections import Counter
 from datetime import datetime
 
+# --- 字体处理 (Mac 乱码终结版) ---
+import platform
+def get_chinese_font():
+    system = platform.system()
+    if system == "Darwin": # Mac
+        fonts = ["/System/Library/Fonts/PingFang.ttc", 
+                 "/System/Library/Fonts/STHeiti Light.ttc",
+                 "/System/Library/Fonts/Supplemental/Arial Unicode.ttf"]
+        for f in fonts:
+            try: 
+                open(f)
+                return f
+            except: continue
+    return None # Win/Linux 需另外处理，暂时 fallback
+
+font_path = get_chinese_font()
+# 设置 Matplotlib 字体以支持中文
+if platform.system() == "Darwin":
+    plt.rcParams['font.sans-serif'] = ['Arial Unicode MS', 'Heiti TC', 'PingFang SC']
+else:
+    plt.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei']
+plt.rcParams['axes.unicode_minus'] = False
+# --------------------------------
+
 # 页面配置
 st.set_page_config(page_title="SPR - 你的 Prompt 画像", layout="wide", page_icon="🔮")
 
@@ -123,9 +147,6 @@ col_cloud, col_radar = st.columns([1.5, 1])
 
 with col_cloud:
     st.subheader("☁️ 你的思维词云")
-    font_path = "PingFang.ttc"
-    try: open(font_path) 
-    except: font_path = None
     
     wc = WordCloud(font_path=font_path, width=800, height=500, background_color="white", 
                    max_words=100, collocations=False).generate(" ".join(words))
@@ -155,12 +176,12 @@ with col_radar:
     labels = list(scores.keys())
     values = [s/total_score for s in scores.values()]
     # 闭合雷达图
-    values += values[:1]
+    values.append(values[0])
     angles = np.linspace(0, 2*np.pi, len(labels), endpoint=False).tolist()
-    angles += angles[:1]
+    angles.append(angles[0])
     
-    fig_radar = plt.figure(figsize=(4, 4))
-    ax = fig_radar.add_subplot(111, polar=True)
+    fig_radar = plt.figure(figsize=(4, 4), facecolor='#f8f9fa')
+    ax = fig_radar.add_subplot(111, polar=True, facecolor='#f8f9fa')
     ax.plot(angles, values, 'o-', linewidth=2, color='#fb5607')
     ax.fill(angles, values, alpha=0.25, color='#fb5607')
     ax.set_xticks(angles[:-1])

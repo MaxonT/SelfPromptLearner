@@ -39,10 +39,44 @@ export const prompts = pgTable("prompts", {
   deletedAt: timestamp("deleted_at"),
 });
 
-export const insertPromptSchema = createInsertSchema(prompts).omit({ 
-  id: true, 
+const promptMetaSchema = z.object({
+  modelGuess: z.string().optional(),
+  language: z.string().optional(),
+  lengthChars: z.number(),
+  lengthTokensEst: z.number(),
+  isEdit: z.boolean(),
+  submitMethod: z.string(),
+});
+
+const promptAnalysisSchema = z
+  .object({
+    taxonomy: z
+      .object({
+        taskType: z.array(z.string()),
+        intent: z.array(z.string()),
+        constraints: z.array(z.string()),
+        riskFlags: z.array(z.string()),
+      })
+      .optional(),
+    scores: z
+      .object({
+        clarity: z.number(),
+        ambiguity: z.number(),
+        reproducibility: z.number(),
+      })
+      .optional(),
+    traits: z.array(z.string()).optional(),
+    suggestions: z.array(z.string()).optional(),
+  })
+  .optional();
+
+export const insertPromptSchema = createInsertSchema(prompts, {
+  meta: promptMetaSchema,
+  analysis: promptAnalysisSchema,
+}).omit({
+  id: true,
   createdAt: true,
-  deletedAt: true 
+  deletedAt: true,
 });
 
 export type Prompt = typeof prompts.$inferSelect;

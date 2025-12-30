@@ -17,11 +17,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       alert("还没有收集到数据，先去 ChatGPT 页面点「扫描」！");
       return;
     }
-    const list = prompts.map(p => p.text).join('\n===SPLIT===\n');
-    const blob = new Blob([list], { type: 'text/plain' });
+    // 升级：导出完整 JSON 以支持时间分析
+    const json = JSON.stringify(prompts, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = 'my_prompts.txt'; a.click();
+    a.href = url; a.download = 'my_prompts.json'; a.click();
     URL.revokeObjectURL(url);
   };
 

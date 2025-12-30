@@ -6,7 +6,7 @@ import {
   type UpdatePromptRequest,
   type PromptsQueryParams
 } from "@shared/schema";
-import { eq, desc, ilike, and } from "drizzle-orm";
+import { eq, desc, ilike, and, sql } from "drizzle-orm";
 
 export interface IStorage {
   getPrompts(params?: PromptsQueryParams): Promise<Prompt[]>;
@@ -32,11 +32,16 @@ export class DatabaseStorage implements IStorage {
       conditions.push(eq(prompts.site, params.site));
     }
 
-    // Default to sorting by date desc
-    return await db.select()
-      .from(prompts)
-      .where(and(...conditions))
-      .orderBy(desc(prompts.createdAt));
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+    const orderByClause =
+      params?.sortBy === 'clarity'
+        ? desc(sql`COALESCE((analysis->'scores'->>'clarity')::int, 0)`)
+        : desc(prompts.createdAt);
+
+    const baseQuery = db.select().from(prompts);
+    const filteredQuery = whereClause ? baseQuery.where(whereClause) : baseQuery;
+
+    return await filteredQuery.orderBy(orderByClause);
   }
 
   async getPrompt(id: string): Promise<Prompt | undefined> {

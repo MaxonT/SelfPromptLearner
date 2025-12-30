@@ -10,12 +10,12 @@
   <header>
     <h1><span>🔮</span> Prompt Mirror</h1>
     <div class="actions">
-      <button id="theme-btn" title="切换深色模式">
+      <button id="theme-btn" title="Toggle Dark Mode">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
         </svg>
       </button>
-      <button id="main-site-btn" title="查看分析主站">
+      <button id="main-site-btn" title="Open Main Site">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <rect x="3" y="3" width="7" height="7"></rect>
           <rect x="14" y="3" width="7" height="7"></rect>
@@ -23,7 +23,7 @@
           <rect x="3" y="14" width="7" height="7"></rect>
         </svg>
       </button>
-      <button id="scan-btn" title="扫描当前页面">
+      <button id="scan-btn" title="Scan Current Page">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M3 7V5a2 2 0 0 1 2-2h2"></path>
           <path d="M17 3h2a2 2 0 0 1 2 2v2"></path>
@@ -32,7 +32,7 @@
           <rect x="7" y="7" width="10" height="10" rx="1"></rect>
         </svg>
       </button>
-      <button id="export-btn" title="导出数据">
+      <button id="export-btn" title="Export Data">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
         </svg>
@@ -44,19 +44,19 @@
     <!-- KPI Cards -->
     <div class="kpi-grid">
       <div class="kpi-card">
-        <div class="kpi-label">今日收集</div>
+        <div class="kpi-label">Today</div>
         <div class="kpi-value" id="today-count">0</div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-label">总计 Prompt</div>
+        <div class="kpi-label">Total Prompts</div>
         <div class="kpi-value" id="total-count">0</div>
       </div>
     </div>
 
     <!-- Charts Tabs -->
     <div class="tabs">
-      <button class="tab-btn active" data-tab="radar">能力雷达</button>
-      <button class="tab-btn" data-tab="pie">类型分布</button>
+      <button class="tab-btn active" data-tab="radar">Skill Radar</button>
+      <button class="tab-btn" data-tab="pie">Type Dist.</button>
     </div>
 
     <!-- Chart Canvas -->
@@ -66,7 +66,7 @@
 
     <!-- Recent List -->
     <div class="list-header">
-      <h2>最近记录</h2>
+      <h2>Recent</h2>
       <span style="font-size:12px;color:#999" id="last-sync">Just now</span>
     </div>
     <div class="prompt-list" id="recent-list">

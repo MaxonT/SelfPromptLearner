@@ -260,9 +260,13 @@ import platform
 def get_chinese_font():
     system = platform.system()
     if system == "Darwin": # Mac
-        fonts = ["/System/Library/Fonts/PingFang.ttc", 
-                 "/System/Library/Fonts/STHeiti Light.ttc",
-                 "/System/Library/Fonts/Supplemental/Arial Unicode.ttf"]
+        fonts = [
+            "/System/Library/Fonts/PingFang.ttc", 
+            "/System/Library/Fonts/STHeiti Light.ttc",
+            "/System/Library/Fonts/Hiragino Sans GB.ttc",
+            "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
+            "/Library/Fonts/Arial Unicode.ttf"
+        ]
         for f in fonts:
             try: 
                 open(f)
@@ -353,6 +357,28 @@ luxury_css = """
         color: #f8fafc !important;
         font-weight: 300 !important;
         letter-spacing: -0.5px;
+    }
+
+
+    /* File Uploader Enhancement */
+    [data-testid="stFileUploader"] {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px dashed rgba(255, 255, 255, 0.2);
+        border-radius: 12px;
+        padding: 10px;
+        transition: all 0.3s ease;
+    }
+    [data-testid="stFileUploader"]:hover {
+        background: rgba(255, 255, 255, 0.06);
+        border-color: #D4AF37; /* Gold border on hover */
+    }
+    [data-testid="stFileUploader"] section {
+        background: transparent !important;
+    }
+    [data-testid="stFileUploader"] button {
+        background: rgba(212, 175, 55, 0.2) !important;
+        color: #D4AF37 !important;
+        border: none !important;
     }
 </style>
 """
@@ -807,7 +833,7 @@ with tab_habit:
             st.caption(t('trend_caption'))
             fig_trend = px.bar(daily_counts.sort_values('date'), x='date', y='count', 
                               color='count', color_continuous_scale='Blues', template="plotly_dark")
-            luxury_chart(fig_trend)
+            luxury_chart(fig_trend, title=t('trend_caption'))
             st.plotly_chart(fig_trend, use_container_width=True)
             
         with c2:
@@ -823,14 +849,14 @@ with tab_habit:
                     template="plotly_dark"
                 )
                 fig_bar.update_traces(marker_color='#D4AF37')
-                luxury_chart(fig_bar)
+                luxury_chart(fig_bar, title=t('hour_caption'))
                 fig_bar.update_layout(xaxis=dict(tickmode='linear', dtick=2))
                 st.plotly_chart(fig_bar, use_container_width=True)
                 
             with tab_line:
                 fig_hour = px.line(hour_counts, x='hour', y='count', markers=True, template="plotly_dark")
                 fig_hour.update_traces(line_color='#6A5ACD')
-                luxury_chart(fig_hour)
+                luxury_chart(fig_hour, title=t('hour_caption'))
                 st.plotly_chart(fig_hour, use_container_width=True)
             
     else:

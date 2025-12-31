@@ -90,9 +90,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     chrome.tabs.create({ url: `http://localhost:8501/?lang=${currentLang}` });
   };
   
+  // Privacy & Data Controls
+  document.getElementById('clear-data-btn').onclick = handleClearData;
+
   // 初始化主题
   initTheme();
 });
+
+async function handleClearData() {
+  const confirmMsg = currentLang === 'en' 
+    ? "Are you sure you want to clear all stored data? This cannot be undone." 
+    : "确定要清除所有存储的数据吗？此操作无法撤销。";
+  
+  if (confirm(confirmMsg)) {
+    await chrome.storage.local.set({ prompts: [] });
+    await loadData();
+    renderKPI();
+    renderList();
+    renderChart();
+    alert(currentLang === 'en' ? "Data cleared successfully." : "数据已清除。");
+  }
+}
 
 function toggleLang() {
   currentLang = currentLang === 'en' ? 'zh' : 'en';

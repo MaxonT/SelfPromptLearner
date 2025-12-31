@@ -3,8 +3,8 @@
   "description": "默默收集你复制和 ChatGPT 网页的 Prompt",
   "version": "1.0.1",
   "manifest_version": 3,
-  "permissions": ["storage", "clipboardRead", "activeTab", "scripting"],
-  "host_permissions": ["https://chat.openai.com/*", "https://chatgpt.com/*"],
+  "permissions": ["storage", "activeTab", "scripting"],
+  "host_permissions": ["https://chatgpt.com/*", "https://chat.openai.com/*"],
   "background": { "service_worker": "background.js" },
   "content_scripts": [
     {

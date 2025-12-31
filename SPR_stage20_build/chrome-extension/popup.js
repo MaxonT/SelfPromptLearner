@@ -24,10 +24,54 @@ const classify = (text) => {
 let currentChart = null;
 let currentTab = 'radar';
 let allPrompts = [];
+let currentLang = 'en'; // Default English
+
+const I18N = {
+  en: {
+    today: "Today",
+    total: "Total Prompts",
+    radar: "Skill Radar",
+    pie: "Type Dist.",
+    recent: "Recent",
+    scan: "Scan Current Page",
+    export: "Export Data",
+    empty: "No prompts yet...",
+    clickScan: "Click scan icon to start",
+    other: "📂 Other",
+    learning: "🎓 Learning",
+    coding: "💻 Coding",
+    writing: "📝 Writing",
+    logic: "🧠 Logic",
+    creative: "🎨 Creative"
+  },
+  zh: {
+    today: "今日收集",
+    total: "总计 Prompt",
+    radar: "能力雷达",
+    pie: "类型分布",
+    recent: "最近记录",
+    scan: "扫描当前页面",
+    export: "导出数据",
+    empty: "还没有数据...",
+    clickScan: "点击右上角扫描",
+    other: "📂 其他",
+    learning: "🎓 学习",
+    coding: "💻 编程",
+    writing: "📝 创作",
+    logic: "🧠 逻辑",
+    creative: "🎨 创意"
+  }
+};
 
 // 3. 初始化
 document.addEventListener('DOMContentLoaded', async () => {
   await loadData();
+  
+  // Load saved lang
+  const savedLang = localStorage.getItem('lang');
+  if (savedLang) currentLang = savedLang;
+  updateLangUI();
+
   renderKPI();
   renderList();
   renderChart();
@@ -40,16 +84,40 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('scan-btn').onclick = handleScan;
   document.getElementById('export-btn').onclick = handleExport;
   document.getElementById('theme-btn').onclick = toggleTheme;
+  document.getElementById('lang-btn').onclick = toggleLang;
+  
   document.getElementById('main-site-btn').onclick = () => {
-    // Determine language based on some logic or default to 'en' since UI is English
-    // We can also check if we want to sync theme, but let's start with lang
-    const lang = 'en'; 
-    chrome.tabs.create({ url: `http://localhost:8501/?lang=${lang}` });
+    chrome.tabs.create({ url: `http://localhost:8501/?lang=${currentLang}` });
   };
   
   // 初始化主题
   initTheme();
 });
+
+function toggleLang() {
+  currentLang = currentLang === 'en' ? 'zh' : 'en';
+  localStorage.setItem('lang', currentLang);
+  updateLangUI();
+  renderKPI(); // Re-render to update labels
+  renderList();
+  renderChart(); // Re-render chart labels
+}
+
+function updateLangUI() {
+  const t = I18N[currentLang];
+  document.getElementById('lang-btn').innerText = currentLang === 'en' ? 'EN' : 'CN';
+  
+  // Update static texts
+  document.querySelector('.kpi-card:nth-child(1) .kpi-label').innerText = t.today;
+  document.querySelector('.kpi-card:nth-child(2) .kpi-label').innerText = t.total;
+  document.querySelector('.tab-btn[data-tab="radar"]').innerText = t.radar;
+  document.querySelector('.tab-btn[data-tab="pie"]').innerText = t.pie;
+  document.querySelector('.list-header h2').innerText = t.recent;
+  
+  // Update tooltips
+  document.getElementById('scan-btn').title = t.scan;
+  document.getElementById('export-btn').title = t.export;
+}
 
 // --- 主题管理 ---
 function initTheme() {
@@ -88,17 +156,11 @@ function renderKPI() {
 function renderList() {
   const listEl = document.getElementById('recent-list');
   if (allPrompts.length === 0) {
-    listEl.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-icon">👻</div>
-        <div style="margin-bottom:8px">还没有数据...</div>
-        <div style="font-size:12px;color:var(--primary);display:flex;align-items:center;justify-content:center;gap:4px">
-          点击右上角扫描 
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M7 17L17 7M17 7H7M17 7V17"></path>
-          </svg>
-        </div>
-      </div>`;
+    listEl.innerHTML = `<div class="empty-state">
+      <div style="font-size:40px;margin-bottom:10px">📭</div>
+      <p>${I18N[currentLang].empty}</p>
+      <p style="font-size:12px;color:#666">${I18N[currentLang].clickScan}</p>
+    </div>`;
     return;
   }
 
@@ -132,15 +194,27 @@ function renderChart() {
 
   // 统计数据
   const stats = {};
-  Object.keys(CATEGORIES).forEach(k => stats[k] = 0);
-  stats["📂 Other"] = 0;
+  const t = I18N[currentLang];
+  
+  // Initialize with translated labels
+  const labelMap = {
+    "🎓 Learning": t.learning,
+    "💻 Coding": t.coding,
+    "📝 Writing": t.writing,
+    "🧠 Logic": t.logic,
+    "🎨 Creative": t.creative,
+    "📂 Other": t.other
+  };
+  
+  Object.values(labelMap).forEach(v => stats[v] = 0);
   
   allPrompts.forEach(p => {
-    const cat = classify(p.text);
+    const rawCat = classify(p.text);
+    const cat = labelMap[rawCat] || labelMap["📂 Other"];
     stats[cat] = (stats[cat] || 0) + 1;
   });
 
-  const labels = Object.keys(stats).filter(k => k !== "📂 Other"); // 雷达图不显示其他
+  const labels = Object.keys(stats).filter(k => k !== labelMap["📂 Other"]); // 雷达图不显示其他
   const data = labels.map(k => stats[k]);
 
   // Chart.js 配置

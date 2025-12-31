@@ -232,13 +232,24 @@ english_stops.update({
     "me", "thanks", "thank", "write", "create", "make", "use", "using", "code",
     "want", "need", "like", "just", "get", "go", "know", "think", "see", "say",
     "tell", "ask", "try", "look", "take", "give", "find", "use", "way", "new",
-    "good", "great", "well", "much", "many", "lot", "little", "big", "small"
+    "good", "great", "well", "much", "many", "lot", "little", "big", "small",
+    # Prompt Engineering Boilerplate (Noise for WordCloud)
+    "act", "role", "assume", "step", "context", "instruction", "output", "format",
+    "generate", "rewrite", "revise", "optimize", "check", "verify", "explain",
+    "translation", "translate", "english", "chinese", "text", "sentence", "paragraph",
+    "based", "following", "provided", "below", "above", "result", "answer", "question",
+    "style", "tone", "ensure", "make", "sure", "include", "example", "list"
 })
 
 # 中文停用词 (De-noising)
 chinese_stops = {
     "的", "了", "是", "我", "你", "他", "在", "和", "有", "就", "不", "人", "都", "一", "一个", "上", "也", "很", "到", "说", "要", "去", "能", "会", "着", "没有", "看", "怎么", "什么", "这", "那", "这个", "那个", "请", "帮我", "给我", "可以", "吗",
-    "个", "只", "次", "把", "被", "让", "给", "但", "因为", "所以", "如果", "虽然", "但是", "或者", "还是", "以及", "除了", "为了", "关于", "对于", "通过", "根据", "按照", "作为", "随着"
+    "个", "只", "次", "把", "被", "让", "给", "但", "因为", "所以", "如果", "虽然", "但是", "或者", "还是", "以及", "除了", "为了", "关于", "对于", "通过", "根据", "按照", "作为", "随着",
+    # Prompt Engineering Boilerplate (Chinese)
+    "扮演", "角色", "生成", "输出", "格式", "要求", "上下文", "步骤", "解释", "翻译",
+    "英文", "中文", "代码", "文章", "内容", "以下", "以上", "提供", "基于", "使用",
+    "不仅", "而且", "能够", "需要", "帮忙", "修改", "润色", "优化", "检查", "写一个",
+    "帮我写", "帮我看", "怎么写", "怎么做"
 }
 
 # 页面配置
@@ -445,7 +456,11 @@ if up:
                     if 'text' in data[0]: 
                         for item in data:
                             text = item.get('text', '')
+                            # Junk Filter: Remove pure punctuation/numbers or very short generic words
                             if exclude_short and len(text) < 5: continue
+                            if re.match(r'^[\s\d\W]+$', text): continue # Only symbols/numbers
+                            if text.lower().strip() in ["hi", "hello", "test", "testing", "你好", "测试"]: continue
+                            
                             new_lines.append(text)
                             ts = item.get('ts', 0)
                             if ts > 0: new_timestamps.append(datetime.fromtimestamp(ts / 1000))
@@ -511,18 +526,41 @@ if timestamps and len(timestamps) == len(lines):
 else:
     has_time = False
 
-# --- 核心算法：复杂度评分 (Complexity Score) ---
+# --- 核心算法：复杂度评分 (Complexity Score 2.0) ---
 def calculate_complexity(text):
     score = 0
-    score += min(len(text) / 200, 1.0) * 40
+    text_lower = text.lower()
+    
+    # 1. Base Score (Length)
+    score += min(len(text) / 200, 1.0) * 30  # Reduced base weight
+    
+    # 2. Logical Depth
     logical_words = [
         'if', 'because', 'however', 'therefore', 'although', 'compare', 'difference',
-        '如果', '因为', '但是', '所以', '虽然', '比较', '区别', '原理', '分析', 'why', 'how'
+        '如果', '因为', '但是', '所以', '虽然', '比较', '区别', '原理', '分析', 'why', 'how',
+        'strategy', 'plan', 'method', 'approach', 'framework', 'model', 'theory'
     ]
-    logic_hits = sum(1 for w in logical_words if w in text.lower())
-    score += min(logic_hits / 3, 1.0) * 30
-    if '```' in text or '\n-' in text or '\n1.' in text:
-        score += 30
+    logic_hits = sum(1 for w in logical_words if w in text_lower)
+    score += min(logic_hits / 5, 1.0) * 25
+    
+    # 3. Structural Bonus (Markdown)
+    structure_score = 0
+    if '```' in text: structure_score += 15  # Code block
+    if '\n-' in text or '\n*' in text: structure_score += 10  # List
+    if '\n1.' in text: structure_score += 10 # Ordered list
+    if '> ' in text: structure_score += 5    # Quote
+    score += min(structure_score, 30)
+    
+    # 4. Cognitive Patterns (Role & CoT)
+    cognitive_score = 0
+    # Role Prompting
+    if any(p in text_lower for p in ['act as', 'role', '扮演', '你是一个', 'you are a']):
+        cognitive_score += 10
+    # Chain of Thought
+    if any(p in text_lower for p in ['step by step', 'chain of thought', 'reasoning', '一步步', '思维链']):
+        cognitive_score += 15
+    score += min(cognitive_score, 15)
+
     return min(int(score), 100)
 
 df['complexity'] = df['prompt'].apply(calculate_complexity)
@@ -595,27 +633,56 @@ with tab_insight:
         
         category_defs = {
             "coding": {
-                "keywords": ["代码", "code", "函数", "报错", "bug", "python", "js", "react", "sql", "api", "写一个", "实现", "function", "class", "error", "接口"],
+                "keywords": [
+                    "代码", "code", "函数", "报错", "bug", "python", "js", "react", "sql", "api", "写一个", "实现", "function", "class", "error", "接口",
+                    "java", "c++", "golang", "rust", "node", "css", "html", "docker", "k8s", "aws", "git", "github", "merge", "branch", "commit",
+                    "database", "db", "mongo", "redis", "query", "request", "response", "json", "xml", "yaml", "config", "deploy", "build", "run",
+                    "script", "algorithm", "loop", "variable", "import", "package", "install", "pip", "npm", "yarn", "compile", "debug", "stack",
+                    "overflow", "exception", "try", "catch", "async", "await", "promise", "thread", "process", "linux", "shell", "bash", "terminal"
+                ],
                 "label_en": "Coding",
                 "label_zh": "💻 编程开发"
             },
             "writing": {
-                "keywords": ["文案", "文章", "周报", "总结", "扩写", "润色", "大纲", "标题", "翻译", "邮件", "write", "email", "article", "summary", "translate", "outline", "title"],
+                "keywords": [
+                    "文案", "文章", "周报", "总结", "扩写", "润色", "大纲", "标题", "翻译", "邮件", "write", "email", "article", "summary", "translate", "outline", "title",
+                    "essay", "blog", "post", "copy", "copywriting", "intro", "introduction", "conclusion", "paragraph", "sentence", "grammar", "spelling",
+                    "tone", "style", "formal", "casual", "academic", "professional", "rewrite", "revise", "edit", "proofread", "check", "draft",
+                    "report", "memo", "letter", "proposal", "statement", "bio", "description", "caption", "slogan", "tagline", "keyword", "seo",
+                    "story", "narrative", "plot", "character", "dialogue", "script", "screenplay", "poem", "lyrics", "rhyme", "verse"
+                ],
                 "label_en": "Writing",
                 "label_zh": "📝 内容创作"
             },
             "logic": {
-                "keywords": ["分析", "原因", "区别", "比较", "评价", "优缺点", "建议", "方案", "思维导图", "analyze", "reason", "compare", "difference", "pros", "cons", "plan"],
+                "keywords": [
+                    "分析", "原因", "区别", "比较", "评价", "优缺点", "建议", "方案", "思维导图", "analyze", "reason", "compare", "difference", "pros", "cons", "plan",
+                    "strategy", "tactic", "method", "approach", "framework", "model", "theory", "hypothesis", "assumption", "premise", "conclusion",
+                    "argument", "debate", "critique", "review", "evaluate", "assess", "audit", "investigate", "research", "study", "survey", "data",
+                    "evidence", "proof", "logic", "logical", "fallacy", "bias", "cognitive", "psychology", "philosophy", "ethics", "moral", "value",
+                    "principle", "rule", "law", "regulation", "policy", "guideline", "standard", "criteria", "metric", "kpi", "okr", "goal", "objective"
+                ],
                 "label_en": "Logic",
                 "label_zh": "🧠 逻辑分析"
             },
             "learning": {
-                "keywords": ["解释", "介绍", "是什么", "含义", "原理", "教程", "学习", "如何", "explain", "what", "how", "meaning", "tutorial", "principle", "learn"],
+                "keywords": [
+                    "解释", "介绍", "是什么", "含义", "原理", "教程", "学习", "如何", "explain", "what", "how", "meaning", "tutorial", "principle", "learn",
+                    "teach", "guide", "lesson", "course", "class", "lecture", "study", "exam", "test", "quiz", "question", "answer", "solution",
+                    "definition", "define", "concept", "term", "vocabulary", "grammar", "history", "geography", "science", "math", "physics", "chemistry",
+                    "biology", "art", "music", "literature", "culture", "language", "skill", "technique", "tip", "trick", "hack", "advice", "suggestion",
+                    "recommendation", "resource", "book", "paper", "article", "video", "podcast", "website", "tool", "software", "app"
+                ],
                 "label_en": "Learning",
                 "label_zh": "🎓 知识学习"
             },
             "creative": {
-                "keywords": ["创意", "点子", "故事", "设想", "如果", "生成", "设计", "idea", "story", "design", "imagine", "generate", "create"],
+                "keywords": [
+                    "创意", "点子", "故事", "设想", "如果", "生成", "设计", "idea", "story", "design", "imagine", "generate", "create",
+                    "brainstorm", "concept", "inspiration", "vision", "dream", "fantasy", "fiction", "novel", "game", "play", "fun", "joke", "humor",
+                    "comedy", "satire", "parody", "meme", "logo", "icon", "image", "picture", "photo", "video", "audio", "music", "song", "sound",
+                    "color", "palette", "font", "typography", "layout", "ui", "ux", "wireframe", "prototype", "mockup", "sketch", "drawing", "painting"
+                ],
                 "label_en": "Creative",
                 "label_zh": "🎨 创意脑暴"
             }

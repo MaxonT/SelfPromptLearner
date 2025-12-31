@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit.components.v1 as components
+import textwrap
 
 # --- Session State Management (Persistence) ---
 if 'lang' not in st.session_state:
@@ -18,8 +19,8 @@ if 'lang' not in st.session_state:
     qp = st.query_params
     st.session_state.lang = qp.get('lang', 'en') # Default English
 
-if 'theme' not in st.session_state:
-    st.session_state.theme = 'light' # Default Light
+# FORCE LUXURY DARK MODE (Remove 'theme' toggle logic)
+st.session_state.theme = 'dark'
 
 # Persist DataFrames across reruns
 if 'cached_data' not in st.session_state:
@@ -218,19 +219,26 @@ try:
     from nltk.corpus import stopwords
     english_stops = set(stopwords.words('english'))
 except (LookupError, ImportError):
-    english_stops = {
-        "the", "a", "an", "in", "on", "at", "for", "to", "of", "is", "are", "was", "were", 
-        "be", "been", "being", "have", "has", "had", "do", "does", "did", "it", "that", 
-        "this", "these", "those", "i", "you", "he", "she", "we", "they", "my", "your", 
-        "his", "her", "our", "their", "what", "which", "who", "whom", "whose", "where", 
-        "when", "why", "how", "can", "could", "will", "would", "shall", "should", "may", 
-        "might", "must", "and", "but", "or", "so", "not", "no", "yes", "please", "help", 
-        "me", "thanks", "thank", "write", "create", "make", "use", "using", "code"
-    }
+    english_stops = set()
+
+# Enhanced Stopwords (De-noising)
+english_stops.update({
+    "the", "a", "an", "in", "on", "at", "for", "to", "of", "is", "are", "was", "were", 
+    "be", "been", "being", "have", "has", "had", "do", "does", "did", "it", "that", 
+    "this", "these", "those", "i", "you", "he", "she", "we", "they", "my", "your", 
+    "his", "her", "our", "their", "what", "which", "who", "whom", "whose", "where", 
+    "when", "why", "how", "can", "could", "will", "would", "shall", "should", "may", 
+    "might", "must", "and", "but", "or", "so", "not", "no", "yes", "please", "help", 
+    "me", "thanks", "thank", "write", "create", "make", "use", "using", "code",
+    "want", "need", "like", "just", "get", "go", "know", "think", "see", "say",
+    "tell", "ask", "try", "look", "take", "give", "find", "use", "way", "new",
+    "good", "great", "well", "much", "many", "lot", "little", "big", "small"
+})
 
 # 中文停用词 (De-noising)
 chinese_stops = {
-    "的", "了", "是", "我", "你", "他", "在", "和", "有", "就", "不", "人", "都", "一", "一个", "上", "也", "很", "到", "说", "要", "去", "能", "会", "着", "没有", "看", "怎么", "什么", "这", "那", "这个", "那个", "请", "帮我", "给我", "可以", "吗"
+    "的", "了", "是", "我", "你", "他", "在", "和", "有", "就", "不", "人", "都", "一", "一个", "上", "也", "很", "到", "说", "要", "去", "能", "会", "着", "没有", "看", "怎么", "什么", "这", "那", "这个", "那个", "请", "帮我", "给我", "可以", "吗",
+    "个", "只", "次", "把", "被", "让", "给", "但", "因为", "所以", "如果", "虽然", "但是", "或者", "还是", "以及", "除了", "为了", "关于", "对于", "通过", "根据", "按照", "作为", "随着"
 }
 
 # 页面配置
@@ -253,143 +261,100 @@ def get_chinese_font():
 
 font_path = get_chinese_font()
 
-# --- CSS Theme Injection (Real Dark/Light Mode) ---
-# Define theme variables
-themes = {
-    'light': {
-        'bg': '#ffffff',
-        'secondary_bg': '#f0f2f6',
-        'text': '#31333F',
-        'card_bg': '#ffffff',
-        'card_border': 'rgba(49, 51, 63, 0.1)',
-        'metric_val': '#31333F'
-    },
-    'dark': {
-        'bg': '#0e1117',
-        'secondary_bg': '#262730',
-        'text': '#fafafa',
-        'card_bg': '#1e212b',
-        'card_border': 'rgba(250, 250, 250, 0.1)',
-        'metric_val': '#4cc9f0'
-    }
-}
-
-current_theme = themes[st.session_state.theme]
-
-theme_css = f"""
+# --- Luxury CSS Injection ---
+luxury_css = """
 <style>
-    :root {{
-        --primary-color: #4cc9f0;
-    }}
-    /* Force Theme Colors */
-    .stApp {{
-        background-color: {current_theme['bg']};
-        color: {current_theme['text']};
-    }}
-    
-    /* Sidebar */
-    [data-testid="stSidebar"] {{
-        background-color: {current_theme['secondary_bg']};
-    }}
-    [data-testid="stSidebar"] * {{
-        color: {current_theme['text']} !important;
-    }}
-    
-    /* Metrics & Cards */
-    .stMetric {{ 
-        background-color: {current_theme['card_bg']} !important; 
-        padding: 15px; 
-        border-radius: 12px; 
-        border: 1px solid {current_theme['card_border']}; 
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
-    }}
-    [data-testid="stMetricValue"] {{
-        color: {current_theme['metric_val']} !important;
-    }}
-    [data-testid="stMetricLabel"] {{
-        color: {current_theme['text']} !important;
-        opacity: 0.8;
-    }}
-    
-    /* Text Colors */
-    h1, h2, h3, p, span, div {{
-        color: {current_theme['text']};
+    /* Global Background: Deep Blue-Black Gradient */
+    .stApp {
+        background: radial-gradient(circle at 50% 10%, #1e293b 0%, #0f172a 40%, #020617 100%) !important;
+        color: #e2e8f0;
+    }
+
+    /* Noise Texture Overlay */
+    .stApp::before {
+        content: "";
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    /* Liquid Glass Cards */
+    .stMetric, .stDataFrame, .stPlotlyChart {
+        background: rgba(255, 255, 255, 0.03) !important;
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        border-radius: 16px !important;
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+        padding: 16px !important;
+        transition: all 0.3s ease;
+    }
+
+    .stMetric:hover, .stDataFrame:hover {
+        background: rgba(255, 255, 255, 0.05) !important;
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        transform: translateY(-2px);
+        box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.3);
+    }
+
+    /* Metric Values (Champagne Gold) */
+    [data-testid="stMetricValue"] {
+        color: #D4AF37 !important;
         font-family: 'Helvetica Neue', sans-serif;
-    }}
+        font-weight: 300;
+        text-shadow: 0 0 20px rgba(212, 175, 55, 0.3);
+    }
     
-    /* Input Fields */
-    .stTextInput > div > div > input {{
-        color: {current_theme['text']};
-        background-color: {current_theme['secondary_bg']};
-    }}
+    /* Metric Labels (Soft White) */
+    [data-testid="stMetricLabel"] {
+        color: rgba(255, 255, 255, 0.7) !important;
+        font-size: 0.9em;
+        letter-spacing: 0.5px;
+    }
+
+    /* Sidebar Luxury */
+    [data-testid="stSidebar"] {
+        background: rgba(15, 23, 42, 0.95) !important;
+        border-right: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    
+    /* Buttons (Glassy) */
+    .stButton > button {
+        background: rgba(255, 255, 255, 0.05) !important;
+        color: #D4AF37 !important;
+        border: 1px solid rgba(212, 175, 55, 0.3) !important;
+        border-radius: 8px;
+        transition: all 0.3s;
+    }
+    .stButton > button:hover {
+        background: rgba(212, 175, 55, 0.1) !important;
+        border-color: #D4AF37 !important;
+        box-shadow: 0 0 15px rgba(212, 175, 55, 0.2);
+    }
+
+    /* Titles */
+    h1, h2, h3 {
+        color: #f8fafc !important;
+        font-weight: 300 !important;
+        letter-spacing: -0.5px;
+    }
 </style>
 """
-st.markdown(theme_css, unsafe_allow_html=True)
+st.markdown(luxury_css, unsafe_allow_html=True)
 
-# --- Particle Background (Cool Effect) ---
-# Injects a lightweight particle.js effect
-particles_html = f"""
-<!DOCTYPE html>
-<html>
-<head>
-  <style>
-    #particles-js {{
-      position: fixed;
-      width: 100vw;
-      height: 100vh;
-      top: 0;
-      left: 0;
-      z-index: -1; /* Behind everything */
-      pointer-events: none; /* Don't block clicks */
-    }}
-  </style>
-</head>
-<body>
-  <div id="particles-js"></div>
-  <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
-  <script>
-    particlesJS("particles-js", {{
-      "particles": {{
-        "number": {{ "value": 60, "density": {{ "enable": true, "value_area": 800 }} }},
-        "color": {{ "value": "{'#ffffff' if st.session_state.theme == 'dark' else '#4cc9f0'}" }},
-        "shape": {{ "type": "circle" }},
-        "opacity": {{ "value": 0.3, "random": false }},
-        "size": {{ "value": 3, "random": true }},
-        "line_linked": {{ "enable": true, "distance": 150, "color": "{'#ffffff' if st.session_state.theme == 'dark' else '#4cc9f0'}", "opacity": 0.2, "width": 1 }},
-        "move": {{ "enable": true, "speed": 2, "direction": "none", "random": false, "straight": false, "out_mode": "out", "bounce": false }}
-      }},
-      "interactivity": {{
-        "detect_on": "canvas",
-        "events": {{ "onhover": {{ "enable": false }}, "onclick": {{ "enable": false }}, "resize": true }}
-      }},
-      "retina_detect": true
-    }});
-  </script>
-</body>
-</html>
-"""
-components.html(particles_html, height=0, width=0) # Hidden iframe but injects fixed bg
 
-# --- Top Bar: Language & Theme Toggle ---
-# Using columns to place buttons at top right
-col_title, col_toggles = st.columns([5, 1])
+# --- Top Bar: Language Toggle Only ---
+col_title, col_lang = st.columns([6, 1])
 
-with col_toggles:
-    # Use a container to group buttons close together
-    with st.container():
-        # Language Toggle
-        c_lang, c_theme = st.columns(2)
-        with c_lang:
-            if st.button("🌐 " + ("CN" if st.session_state.lang == 'en' else "EN"), help="Switch Language"):
-                st.session_state.lang = 'zh' if st.session_state.lang == 'en' else 'en'
-                st.rerun()
-        
-        # Theme Toggle
-        with c_theme:
-            theme_icon = "🌙" if st.session_state.theme == 'light' else "☀️"
-            if st.button(theme_icon, help="Toggle Light/Dark Mode"):
-                st.session_state.theme = 'dark' if st.session_state.theme == 'light' else 'light'
-                st.rerun()
+with col_lang:
+    if st.button("🌐 " + ("CN" if st.session_state.lang == 'en' else "EN"), help="Switch Language"):
+        st.session_state.lang = 'zh' if st.session_state.lang == 'en' else 'en'
+        st.rerun()
 
 with col_title:
     st.title(t('page_title'))
@@ -410,28 +375,69 @@ with st.sidebar:
     st.markdown(t('privacy_header'))
     st.caption(t('privacy_caption'))
 
+# --- 关键 CSS 动画定义 ---
+st.markdown("""
+<style>
+@keyframes bounce-left {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(-10px); }
+}
+@keyframes bounce-up-right {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(10px, -10px); }
+}
+.animate-arrow {
+  animation: bounce-left 1.5s infinite ease-in-out;
+  display: inline-block;
+}
+.animate-arrow-ur {
+  animation: bounce-up-right 1.5s infinite ease-in-out;
+  display: inline-block;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# --- Empty State (Onboarding Guide) ---
+def show_onboarding_guide():
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    c1, c2, c3 = st.columns([1, 2, 1])
+    with c2:
+        # Flattened HTML to prevent Markdown code block parsing
+        html_content = """
+<div style="text-align: center; padding: 40px; background: rgba(255,255,255,0.03); border-radius: 20px; border: 1px solid rgba(255,255,255,0.1);">
+<div style="font-size: 60px; margin-bottom: 20px;">🚀</div>
+<h2 style="color: #D4AF37;">Welcome to Mind Cockpit</h2>
+<p style="color: rgba(255,255,255,0.7); font-size: 18px; margin-bottom: 30px;">Your personal thinking analytics dashboard is ready.</p>
+<div style="display: flex; align-items: center; justify-content: center; gap: 20px; margin-top: 40px;">
+<div class="animate-arrow-ur" style="font-size: 40px; color: #4cc9f0;">↗️</div>
+<div style="text-align: left;">
+<div style="font-weight: bold; color: #fff; font-size: 20px;">Step 1</div>
+<div style="color: rgba(255,255,255,0.6);">Click Extension in top-right to export <code>my_prompts.json</code></div>
+</div>
+</div>
+<div style="display: flex; align-items: center; justify-content: center; gap: 20px; margin-top: 20px;">
+<div class="animate-arrow" style="font-size: 40px; color: #4cc9f0;">👈</div>
+<div style="text-align: left;">
+<div style="font-weight: bold; color: #fff; font-size: 20px;">Step 2</div>
+<div style="color: rgba(255,255,255,0.6);">Drag & Drop file to the sidebar</div>
+</div>
+</div>
+</div>
+"""
+        st.markdown(html_content, unsafe_allow_html=True)
+
 # --- 数据加载与持久化逻辑 ---
 lines = []
 timestamps = []
 sources = []
 
-# Logic:
-# 1. If user uploads a new file, process it and save to session_state.
-# 2. If user clicks a button (rerun) but didn't change file, load from session_state.
-# 3. If session_state is empty and no file, show hint.
-
 if up:
-    # New file uploaded or file still present in uploader
-    # We use file content hash or name to detect change if needed, but simple re-read is fine
     try:
         content = up.read().decode('utf-8', errors='ignore')
-        
-        # Parse Logic
         new_lines = []
         new_timestamps = []
         new_sources = []
         
-        # 1. 尝试解析新版插件 JSON [{ts, text, src}, ...]
         if up.name.endswith('.json'):
             try:
                 data = json.loads(content)
@@ -459,7 +465,6 @@ if up:
             except json.JSONDecodeError:
                 pass 
 
-        # 2. 兼容旧版 TXT / JSONL
         if not new_lines: 
              if up.name.endswith('.jsonl'):
                 for line in content.splitlines():
@@ -473,7 +478,6 @@ if up:
                 if len(new_lines) < 2:
                      new_lines = [l.strip() for l in content.splitlines() if l.strip()]
 
-        # Update Session State
         if new_lines:
             st.session_state.cached_data = {
                 'lines': new_lines,
@@ -484,14 +488,13 @@ if up:
     except Exception as e:
         st.error(t('upload_error').format(e))
 
-# Load from Cache if available
 if st.session_state.cached_data:
     lines = st.session_state.cached_data['lines']
     timestamps = st.session_state.cached_data['timestamps']
     sources = st.session_state.cached_data['sources']
 
 if not lines:
-    st.info(t('upload_hint'))
+    show_onboarding_guide() # 👈 调用空状态指引
     st.stop()
 
 # --- 数据预处理 ---
@@ -510,9 +513,6 @@ else:
 
 # --- 核心算法：复杂度评分 (Complexity Score) ---
 def calculate_complexity(text):
-    """
-    计算 Prompt 的思维复杂度 (0-100)
-    """
     score = 0
     score += min(len(text) / 200, 1.0) * 40
     logical_words = [
@@ -539,12 +539,38 @@ def process_tokens(text_list):
     # 2. 英文分词 (简单正则 + NLTK Stopwords)
     en_pattern = re.compile(r'[a-zA-Z]{2,}')
     en_words = en_pattern.findall(all_text.lower())
-    en_words = [w for w in en_words if w not in english_stops]
+    en_words = [w for w in en_words if w not in english_stops and len(w) > 2] # Filter super short English words
     
     return zh_words + en_words
 
 words = process_tokens(lines)
 word_counts = Counter(words)
+
+# --- Luxury Chart Helper ---
+def luxury_chart(fig, title=None, show_median=False, df_col=None):
+    fig.update_layout(
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        font=dict(color='rgba(255,255,255,0.7)', family="Helvetica Neue"),
+        title=dict(text=title, font=dict(color='#f8fafc', size=16)),
+        xaxis=dict(showgrid=False, zeroline=False, color='rgba(255,255,255,0.4)'),
+        yaxis=dict(showgrid=True, gridwidth=1, gridcolor='rgba(255,255,255,0.05)', zeroline=False, color='rgba(255,255,255,0.4)'),
+        margin=dict(l=20, r=20, t=50, b=20),
+        hovermode="x unified"
+    )
+    
+    if show_median and df_col is not None:
+        median = df_col.median()
+        p90 = df_col.quantile(0.9)
+        
+        # Add Lines
+        fig.add_vline(x=median, line_width=1, line_dash="dash", line_color="#D4AF37", opacity=0.8)
+        fig.add_annotation(x=median, y=1, yref="paper", text=f"Med: {int(median)}", showarrow=False, font=dict(color="#D4AF37", size=10), yshift=10)
+        
+        fig.add_vline(x=p90, line_width=1, line_dash="dot", line_color="#6A5ACD", opacity=0.8)
+        fig.add_annotation(x=p90, y=1, yref="paper", text=f"P90: {int(p90)}", showarrow=False, font=dict(color="#6A5ACD", size=10), yshift=10)
+
+    return fig
 
 # --- Dashboard 概览 ---
 st.subheader(t('overview_header'))
@@ -563,10 +589,6 @@ tab_insight, tab_habit, tab_data = st.tabs([t('tab_insight'), t('tab_habit'), t(
 # === Tab 1: 思维洞察 ===
 with tab_insight:
     col_radar, col_cloud = st.columns([1, 1.5])
-    
-    # Advanced Plotly Template (Cyberpunk Style)
-    chart_template = "plotly_dark" if st.session_state.theme == 'dark' else "plotly_white"
-    accent_color = "#4cc9f0" if st.session_state.theme == 'dark' else "#3a86ff"
     
     with col_radar:
         st.subheader(t('radar_header'))
@@ -608,13 +630,15 @@ with tab_insight:
         vals = list(cat_scores.values())
         max_val = max(vals) if vals else 1
         normalized_vals = [v/max_val for v in vals]
-        
         labels = [category_defs[k][f'label_{st.session_state.lang}'] for k in category_defs.keys()]
         
-        fig_radar = px.line_polar(r=normalized_vals, theta=labels, line_close=True, template=chart_template)
-        fig_radar.update_traces(fill='toself', line_color=accent_color)
+        fig_radar = px.line_polar(r=normalized_vals, theta=labels, line_close=True, template="plotly_dark")
+        fig_radar.update_traces(fill='toself', line_color='#D4AF37') # Champagne Gold
         fig_radar.update_layout(
-            polar=dict(radialaxis=dict(visible=False)),
+            polar=dict(
+                radialaxis=dict(visible=False),
+                bgcolor='rgba(0,0,0,0)'
+            ),
             margin=dict(t=20, b=20, l=30, r=30),
             height=350,
             paper_bgcolor='rgba(0,0,0,0)',
@@ -625,9 +649,14 @@ with tab_insight:
     with col_cloud:
         st.subheader(t('cloud_header'))
         if words:
+            # WordCloud with Luxury Colors
+            def luxury_color_func(word, font_size, position, orientation, random_state=None, **kwargs):
+                return "hsl(46, 65%, 60%)" if random_state.randint(0, 1) else "hsl(245, 40%, 70%)"
+
             wc = WordCloud(font_path=font_path, width=800, height=500, 
-                          background_color=None, mode="RGBA", # 透明背景
-                          max_words=100, collocations=False).generate(" ".join(words))
+                          background_color=None, mode="RGBA", # Transparent
+                          max_words=80, collocations=False,
+                          color_func=luxury_color_func).generate(" ".join(words))
             st.image(wc.to_array(), use_column_width=True)
         else:
             st.warning(t('cloud_warning'))
@@ -638,23 +667,27 @@ with tab_insight:
     with c_len:
         fig_len = px.histogram(
              df, x="len", nbins=30,
-             title=t('dist_len_title'),
-             labels={'len': t('dist_len_label'), 'count': t('count_label')},
-             color_discrete_sequence=['#ffbe0b'],
-             template=chart_template
+             color_discrete_sequence=['#D4AF37'], # Champagne Gold
+             template="plotly_dark"
         )
-        fig_len.update_layout(showlegend=False, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+        fig_len.update_traces(
+            marker=dict(line=dict(width=1, color='rgba(255,255,255,0.5)'), pattern=dict(shape="/")), # Glassy Edge + Texture
+            opacity=0.8
+        )
+        luxury_chart(fig_len, t('dist_len_title'), show_median=True, df_col=df['len'])
         st.plotly_chart(fig_len, use_container_width=True)
 
     with c_comp:
         fig_comp = px.histogram(
             df, x="complexity", nbins=20, 
-            title=t('dist_comp_title'),
-            labels={'complexity': t('dist_comp_label'), 'count': t('count_label')},
-            color_discrete_sequence=['#7209b7'],
-            template=chart_template
+            color_discrete_sequence=['#6A5ACD'], # Royal Purple
+            template="plotly_dark"
         )
-        fig_comp.update_layout(bargap=0.1, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+        fig_comp.update_traces(
+            marker=dict(line=dict(width=1, color='rgba(255,255,255,0.5)'), pattern=dict(shape="+")), # Glassy Edge + Texture
+            opacity=0.8
+        )
+        luxury_chart(fig_comp, t('dist_comp_title'), show_median=True, df_col=df['complexity'])
         st.plotly_chart(fig_comp, use_container_width=True)
 
     # 恢复高频词组 (Bigrams) 板块
@@ -662,12 +695,27 @@ with tab_insight:
     st.subheader(t('phrases_header'))
     
     bigrams = []
+    # Advanced Bigram Filter
     for line in lines:
-        # 简单分词用于 bigram
-        line_words = [w for w in jieba.lcut(line) if len(w) > 1 and re.match(r"[\u4e00-\u9fa5a-zA-Z]", w)]
-        if len(line_words) >= 2:
-            for i in range(len(line_words)-1):
-                bigrams.append(f"{line_words[i]} {line_words[i+1]}")
+        # Tokenize line again but use the robust filter
+        line_tokens = []
+        # Chinese
+        zh_pattern = re.compile(r'[\u4e00-\u9fa5]+')
+        for w in jieba.lcut(line):
+            if len(w) > 1 and zh_pattern.match(w) and w not in chinese_stops:
+                line_tokens.append(w)
+        # English
+        en_pattern = re.compile(r'[a-zA-Z]{2,}')
+        for w in en_pattern.findall(line.lower()):
+            if w not in english_stops and len(w) > 2:
+                line_tokens.append(w)
+        
+        if len(line_tokens) >= 2:
+            for i in range(len(line_tokens)-1):
+                # Filter meaningless bigrams
+                w1, w2 = line_tokens[i], line_tokens[i+1]
+                if w1 in english_stops or w2 in english_stops: continue
+                bigrams.append(f"{w1} {w2}")
 
     top_bigrams = Counter(bigrams).most_common(12)
 
@@ -691,8 +739,8 @@ with tab_habit:
         with c1:
             st.caption(t('trend_caption'))
             fig_trend = px.bar(daily_counts.sort_values('date'), x='date', y='count', 
-                              color='count', color_continuous_scale='Blues', template=chart_template)
-            fig_trend.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+                              color='count', color_continuous_scale='Blues', template="plotly_dark")
+            luxury_chart(fig_trend)
             st.plotly_chart(fig_trend, use_container_width=True)
             
         with c2:
@@ -705,17 +753,17 @@ with tab_habit:
             with tab_bar:
                 fig_bar = px.bar(
                     hour_counts, x='hour', y='count',
-                    labels={'hour': t('hour_label'), 'count': t('count_label')},
-                    template=chart_template
+                    template="plotly_dark"
                 )
-                fig_bar.update_traces(marker_color=accent_color)
-                fig_bar.update_layout(xaxis=dict(tickmode='linear', dtick=2), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+                fig_bar.update_traces(marker_color='#D4AF37')
+                luxury_chart(fig_bar)
+                fig_bar.update_layout(xaxis=dict(tickmode='linear', dtick=2))
                 st.plotly_chart(fig_bar, use_container_width=True)
                 
             with tab_line:
-                fig_hour = px.line(hour_counts, x='hour', y='count', markers=True, template=chart_template)
-                fig_hour.update_traces(line_color='#f72585')
-                fig_hour.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+                fig_hour = px.line(hour_counts, x='hour', y='count', markers=True, template="plotly_dark")
+                fig_hour.update_traces(line_color='#6A5ACD')
+                luxury_chart(fig_hour)
                 st.plotly_chart(fig_hour, use_container_width=True)
             
     else:

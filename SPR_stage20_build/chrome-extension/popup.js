@@ -99,7 +99,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('clear-all-btn').onclick = handleClearAll;
   document.getElementById('privacy-link').onclick = (e) => {
     e.preventDefault();
-    chrome.tabs.create({ url: 'privacy.html' });
+    chrome.tabs.create({ url: 'https://selfpromptlearner-syaacpnx6umxrnf8uj5vwn.streamlit.app/?page=privacy' });
   };
 
   // 2. Load Data & Init UI

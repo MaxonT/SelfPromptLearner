@@ -291,6 +291,158 @@ chinese_stops = {
 # 页面配置
 st.set_page_config(page_title="SPR Mind Cockpit", layout="wide", page_icon="🧠")
 
+# --- Query Param Routing (For Privacy Policy) ---
+if st.query_params.get("page") == "privacy":
+    st.title("🔒 Privacy Policy")
+    st.caption("Last Updated: 2026/1/3")
+
+    st.markdown("""
+    <style>
+        .privacy-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 30px;
+            margin-top: 20px;
+        }
+    </style>
+    <div class="privacy-card">
+
+    ### 1) Scope
+    This Privacy Policy applies to:
+    * The **Prompt Mirror Chrome extension** (“Extension”)
+    * The **Prompt Mirror website / landing page / documentation** (“Website”)
+
+    If you are viewing our Website via a third-party hosting provider (e.g., Streamlit), that provider may collect certain technical logs as described below.
+
+    ---
+
+    ### 2) Our Privacy Principles (Plain English)
+    * **Local-first:** By default, your prompt records and analytics are stored locally in your browser.
+    * **User control:** You can export or delete your data at any time.
+    * **No background scraping:** The Extension does not continuously monitor your browsing. It only runs when you interact with it.
+    * **Data minimization:** We do not ask for sensitive personal data to use core features.
+
+    ---
+
+    ### 3) What Information We Collect
+
+    #### A. Data you provide / create inside the Extension (Local by default)
+    When you use the Extension, it may store the following locally on your device:
+    * Prompt text you choose to record (e.g., text you type or select)
+    * Timestamps (when a prompt was recorded)
+    * Basic source context (e.g., site domain or a page identifier, if enabled)
+    * Analytics derived from your prompts (counts, trends, summaries)
+    * Extension preferences/settings (allowlist, toggles, display settings)
+
+    **Important:** This data is stored locally in your browser storage unless you explicitly enable a feature that sends data elsewhere.
+
+    #### B. Website technical data (Hosting logs)
+    Our Website may be hosted by a third-party platform (e.g., Streamlit). Like most hosting services, it may automatically collect:
+    * IP address
+    * Device/browser type
+    * Pages viewed and timestamps
+    * Basic diagnostic logs (crash/latency)
+
+    We use these logs only for security, reliability, and performance monitoring.
+
+    #### C. Data we do NOT intentionally collect
+    We do not intentionally collect:
+    * Government IDs, passwords, financial/payment card details
+    * Health or medical information
+    * Precise GPS location
+    * Sensitive categories (unless you voluntarily type them into your own prompts)
+
+    If you include sensitive info in your prompts, it will be treated as part of your prompt data and will remain local unless you export/share it.
+
+    ---
+
+    ### 4) How We Use Information
+    We use information to:
+    * Provide core functionality (recording prompts, generating analytics)
+    * Store your settings and preferences
+    * Maintain service security and stability (website logs, if any)
+    * Improve UX and fix bugs (aggregated, non-identifying insights when possible)
+
+    ---
+
+    ### 5) Sharing & Disclosure
+
+    #### A. We do not sell your data
+    We do not sell, rent, or trade your personal data.
+
+    #### B. Local storage by default
+    Prompt data and analytics remain on your device by default.
+
+    #### C. Optional network requests (if applicable)
+    If the Extension provides optional features that require network requests (e.g., syncing, cloud backup, or calling a user-configured analysis endpoint), those requests:
+    * Are triggered by your action or enabled settings
+    * Are limited to the minimum data needed for the feature
+    * Do not download or execute remote code inside the Extension
+
+    If you do not enable such features, no prompt content is transmitted.
+
+    #### D. Legal and safety
+    We may disclose information if required by law or to protect rights and safety (e.g., responding to lawful requests).
+
+    ---
+
+    ### 6) Permissions & Why We Need Them (Chrome Extension)
+    Depending on your build, the Extension may request:
+    * `storage`: to save prompt records, analytics, and user settings locally
+    * `activeTab` / `scripting`: to read user-entered/selected text on the current page only when you trigger an action (e.g., “Record/Analyze”)
+    * `host permissions` (site access): to run on user-approved sites where you want to record prompts (preferably allowlisted domains)
+
+    The Extension is designed to operate only on user action and does not continuously scan pages in the background.
+
+    ---
+
+    ### 7) Data Retention
+    * Local prompt data is retained until you delete it.
+    * Website logs (if any) are retained for a limited period as required for security and performance, then deleted or anonymized.
+
+    ---
+
+    ### 8) Data Security
+    We use reasonable measures to protect data:
+    * Local-first storage reduces transmission risk
+    * Access is limited to user-triggered actions and allowed sites
+    However, no method of storage is 100% secure. You are responsible for safeguarding exported files you download.
+
+    ---
+
+    ### 9) Your Choices & Rights
+    You can:
+    * View, export, and delete your stored prompt data within the Extension
+    * Disable recording on specific sites via allowlist/denylist settings
+    * Uninstall the Extension to remove local data (depending on browser behavior)
+
+    If you have questions or requests, contact us at: [ming.t.yang@vanderbilt.edu](mailto:ming.t.yang@vanderbilt.edu)
+
+    ---
+
+    ### 10) Children’s Privacy
+    Prompt Mirror is not intended for children under 13 (or the minimum age required in your region). We do not knowingly collect personal data from children.
+
+    ### 11) International Users
+    If you access the Website from outside the hosting region, your connection may involve cross-border data transmission of basic technical logs. Prompt data remains local by default unless you enable features that transmit it.
+
+    ### 12) Changes to This Policy
+    We may update this policy from time to time. We will revise the “Last Updated” date and, if changes are material, provide a more prominent notice.
+
+    ### 13) Contact
+    **Prompt Mirror Team**  
+    Email: [ming.t.yang@vanderbilt.edu](mailto:ming.t.yang@vanderbilt.edu)
+
+    </div>
+    """, unsafe_allow_html=True)
+    
+    if st.button("← Back to Dashboard"):
+        st.query_params.clear()
+        st.rerun()
+        
+    st.stop() # Stop execution of the main app
+
 # --- 字体处理 (Mac 乱码终结版 - WordCloud用) ---
 import platform
 def get_chinese_font():
@@ -452,6 +604,14 @@ with st.sidebar:
     st.markdown("---")
     with st.expander(t('privacy_title')):
         st.markdown(t('privacy_content'))
+        try:
+            st.page_link("pages/Privacy_Policy.py", label="📄 Full Privacy Policy", icon="⚖️")
+        except:
+            st.markdown("[📄 Full Privacy Policy (Click Here)](/Privacy_Policy)")
+            
+        st.markdown("---")
+        st.caption("👇 **Copy for Google Store:**")
+        st.code("https://selfpromptlearner-syaacpnx6umxrnf8uj5vwn.streamlit.app/Privacy_Policy", language="text")
 
 # --- 关键 CSS 动画定义 ---
 st.markdown("""

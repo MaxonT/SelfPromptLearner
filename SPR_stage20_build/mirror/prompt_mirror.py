@@ -72,6 +72,42 @@ TRANSLATIONS = {
         'en': "👈 Please upload data file on the left",
         'zh': "👈 请先在左侧上传数据文件"
     },
+    'tab_manage': {
+        'en': "🗂️ Data Manager",
+        'zh': "🗂️ 数据管理"
+    },
+    'manage_header': {
+        'en': "Data Management",
+        'zh': "数据管理中心"
+    },
+    'delete_btn': {
+        'en': "Delete Selected",
+        'zh': "删除选中项"
+    },
+    'privacy_title': {
+        'en': "🔒 Privacy & Legal",
+        'zh': "🔒 隐私与法律声明"
+    },
+    'privacy_content': {
+        'en': """
+        **Local Processing Only**
+        Your data never leaves your browser/local machine. All analysis is performed locally using Python.
+        
+        **Open Source**
+        This tool is open source under MIT License. You have full control over your data.
+        """,
+        'zh': """
+        **纯本地处理**
+        您的数据永远不会离开您的浏览器或本地机器。所有分析均使用 Python 在本地完成。
+        
+        **开源透明**
+        本工具基于 MIT 协议开源。您拥有对数据的完全控制权。
+        """
+    },
+    'filter_strict': {
+        'en': "Strict Filter (Remove generic/junk)",
+        'zh': "严格过滤 (移除通用/垃圾 Prompt)"
+    },
     'overview_header': {
         'en': "📊 Core Metrics",
         'zh': "📊 核心指标 (Overview)"
@@ -360,17 +396,20 @@ luxury_css = """
     }
 
 
-    /* File Uploader Enhancement */
+    /* File Uploader Enhancement (High Visibility) */
     [data-testid="stFileUploader"] {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px dashed rgba(255, 255, 255, 0.2);
-        border-radius: 12px;
-        padding: 10px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 2px dashed rgba(255, 255, 255, 0.3);
+        border-radius: 16px;
+        padding: 30px;
         transition: all 0.3s ease;
+        text-align: center;
     }
     [data-testid="stFileUploader"]:hover {
-        background: rgba(255, 255, 255, 0.06);
-        border-color: #D4AF37; /* Gold border on hover */
+        background: rgba(255, 255, 255, 0.08);
+        border-color: #D4AF37;
+        box-shadow: 0 0 20px rgba(212, 175, 55, 0.2);
+        transform: scale(1.02);
     }
     [data-testid="stFileUploader"] section {
         background: transparent !important;
@@ -378,7 +417,8 @@ luxury_css = """
     [data-testid="stFileUploader"] button {
         background: rgba(212, 175, 55, 0.2) !important;
         color: #D4AF37 !important;
-        border: none !important;
+        border: 1px solid #D4AF37 !important;
+        font-weight: bold;
     }
 </style>
 """
@@ -407,10 +447,11 @@ with st.sidebar:
     st.divider()
     st.header(t('settings_header'))
     exclude_short = st.checkbox(t('filter_short'), value=True)
+    strict_filter = st.checkbox(t('filter_strict'), value=False)
     
     st.markdown("---")
-    st.markdown(t('privacy_header'))
-    st.caption(t('privacy_caption'))
+    with st.expander(t('privacy_title')):
+        st.markdown(t('privacy_content'))
 
 # --- 关键 CSS 动画定义 ---
 st.markdown("""
@@ -485,6 +526,12 @@ if up:
                             # Junk Filter: Remove pure punctuation/numbers or very short generic words
                             if exclude_short and len(text) < 5: continue
                             if re.match(r'^[\s\d\W]+$', text): continue # Only symbols/numbers
+                            
+                            # Strict Filter
+                            if strict_filter:
+                                if len(text) < 10: continue
+                                if any(w in text.lower() for w in ["test", "hello", "hi", "你好", "测试", "demo"]): continue
+                            
                             if text.lower().strip() in ["hi", "hello", "test", "testing", "你好", "测试"]: continue
                             
                             new_lines.append(text)
@@ -648,7 +695,7 @@ c4.metric(t('metric_top_word'), top_word)
 st.divider()
 
 # --- Tab 布局 ---
-tab_insight, tab_habit, tab_data = st.tabs([t('tab_insight'), t('tab_habit'), t('tab_data')])
+tab_insight, tab_habit, tab_data, tab_manage = st.tabs([t('tab_insight'), t('tab_habit'), t('tab_data'), t('tab_manage')])
 
 # === Tab 1: 思维洞察 ===
 with tab_insight:
@@ -664,7 +711,13 @@ with tab_insight:
                     "java", "c++", "golang", "rust", "node", "css", "html", "docker", "k8s", "aws", "git", "github", "merge", "branch", "commit",
                     "database", "db", "mongo", "redis", "query", "request", "response", "json", "xml", "yaml", "config", "deploy", "build", "run",
                     "script", "algorithm", "loop", "variable", "import", "package", "install", "pip", "npm", "yarn", "compile", "debug", "stack",
-                    "overflow", "exception", "try", "catch", "async", "await", "promise", "thread", "process", "linux", "shell", "bash", "terminal"
+                    "overflow", "exception", "try", "catch", "async", "await", "promise", "thread", "process", "linux", "shell", "bash", "terminal",
+                    "fix", "issue", "crash", "stacktrace", "ci/cd", "pipeline", "jenkins", "azure", "gcp", "server", "client", "frontend", "backend",
+                    "fullstack", "devops", "sre", "unit test", "integration test", "e2e", "selenium", "cypress", "playwright", "jest", "mocha",
+                    "typescript", "ts", "vue", "angular", "svelte", "nextjs", "nuxtjs", "flask", "django", "fastapi", "spring", "hibernate",
+                    "refactor", "optimize", "performance", "memory", "cpu", "leak", "profiling", "benchmark", "logging", "monitoring", "alerting",
+                    "rest", "graphql", "grpc", "websocket", "socket", "tcp", "udp", "http", "https", "ssl", "tls", "certificate", "key", "token",
+                    "auth", "jwt", "oauth", "sso", "ldap", "encryption", "hashing", "salt", "uuid", "guid", "regex", "regular expression"
                 ],
                 "label_en": "Coding",
                 "label_zh": "💻 编程开发"
@@ -697,7 +750,11 @@ with tab_insight:
                     "teach", "guide", "lesson", "course", "class", "lecture", "study", "exam", "test", "quiz", "question", "answer", "solution",
                     "definition", "define", "concept", "term", "vocabulary", "grammar", "history", "geography", "science", "math", "physics", "chemistry",
                     "biology", "art", "music", "literature", "culture", "language", "skill", "technique", "tip", "trick", "hack", "advice", "suggestion",
-                    "recommendation", "resource", "book", "paper", "article", "video", "podcast", "website", "tool", "software", "app"
+                    "recommendation", "resource", "book", "paper", "article", "video", "podcast", "website", "tool", "software", "app",
+                    "roadmap", "path", "curriculum", "syllabus", "beginner", "intermediate", "advanced", "expert", "master", "pro", "101", "basics",
+                    "fundamentals", "overview", "introduction", "background", "context", "history", "origin", "evolution", "development", "trend",
+                    "future", "prediction", "forecast", "insight", "knowledge", "wisdom", "experience", "expertise", "mastery", "proficiency",
+                    "competence", "capability", "ability", "talent", "gift", "aptitude", "potential", "growth", "development", "progress"
                 ],
                 "label_en": "Learning",
                 "label_zh": "🎓 知识学习"
@@ -707,7 +764,11 @@ with tab_insight:
                     "创意", "点子", "故事", "设想", "如果", "生成", "设计", "idea", "story", "design", "imagine", "generate", "create",
                     "brainstorm", "concept", "inspiration", "vision", "dream", "fantasy", "fiction", "novel", "game", "play", "fun", "joke", "humor",
                     "comedy", "satire", "parody", "meme", "logo", "icon", "image", "picture", "photo", "video", "audio", "music", "song", "sound",
-                    "color", "palette", "font", "typography", "layout", "ui", "ux", "wireframe", "prototype", "mockup", "sketch", "drawing", "painting"
+                    "color", "palette", "font", "typography", "layout", "ui", "ux", "wireframe", "prototype", "mockup", "sketch", "drawing", "painting",
+                    "character", "role", "persona", "profile", "background", "backstory", "plot", "setting", "scene", "dialogue", "script", "screenplay",
+                    "poem", "haiku", "limerick", "sonnet", "lyrics", "verse", "rhyme", "rhythm", "melody", "harmony", "chord", "scale", "key",
+                    "style", "genre", "mood", "atmosphere", "vibe", "tone", "voice", "narrator", "perspective", "viewpoint", "theme", "motif",
+                    "symbol", "metaphor", "simile", "analogy", "allegory", "fable", "myth", "legend", "folklore", "fairy tale", "fantasy", "sci-fi"
                 ],
                 "label_en": "Creative",
                 "label_zh": "🎨 创意脑暴"
@@ -789,109 +850,206 @@ with tab_insight:
     
     bigrams = []
     # Advanced Bigram Filter
+    # Stopwords for Bigrams (Less aggressive)
+    bigram_stops = {
+        "the", "a", "an", "in", "on", "at", "for", "to", "of", "is", "are", "was", "were", 
+        "be", "been", "being", "have", "has", "had", "do", "does", "did", "it", "that", 
+        "this", "these", "those", "i", "you", "he", "she", "we", "they", "my", "your", 
+        "his", "her", "our", "their", "and", "but", "or", "so", "not", "no", "yes", "please", 
+        "me", "thanks", "thank", "want", "need", "like", "just", "get", "go", "know", "think", 
+        "see", "say", "tell", "ask", "try", "look", "take", "give", "find", "use", "way", "new",
+        "good", "great", "well", "much", "many", "lot", "little", "big", "small",
+        "的", "了", "是", "我", "你", "他", "在", "和", "有", "就", "不", "人", "都", "一", "一个", "上", "也", "很", "到", "说", "要", "去", "能", "会", "着", "没有", "看", "怎么", "什么", "这", "那", "这个", "那个", "请", "帮我", "给我", "可以", "吗",
+        "个", "只", "次", "把", "被", "让", "给", "但", "因为", "所以", "如果", "虽然", "但是", "或者", "还是", "以及", "除了", "为了", "关于", "对于", "通过", "根据", "按照", "作为", "随着"
+    }
+
     for line in lines:
         # Tokenize line again but use the robust filter
         line_tokens = []
         # Chinese
         zh_pattern = re.compile(r'[\u4e00-\u9fa5]+')
         for w in jieba.lcut(line):
-            if len(w) > 1 and zh_pattern.match(w) and w not in chinese_stops:
+            if len(w) > 1 and zh_pattern.match(w) and w not in bigram_stops:
                 line_tokens.append(w)
         # English
         en_pattern = re.compile(r'[a-zA-Z]{2,}')
         for w in en_pattern.findall(line.lower()):
-            if w not in english_stops and len(w) > 2:
+            if w not in bigram_stops and len(w) > 2:
                 line_tokens.append(w)
         
         if len(line_tokens) >= 2:
             for i in range(len(line_tokens)-1):
                 # Filter meaningless bigrams
                 w1, w2 = line_tokens[i], line_tokens[i+1]
-                if w1 in english_stops or w2 in english_stops: continue
+                if w1 in bigram_stops or w2 in bigram_stops: continue
                 bigrams.append(f"{w1} {w2}")
 
     top_bigrams = Counter(bigrams).most_common(12)
 
-    cols = st.columns(4)
-    for i, (phrase, count) in enumerate(top_bigrams):
-        with cols[i % 4]:
-            st.button(f"{phrase} ({count})", key=f"bi_{i}", disabled=True)
+    # HTML/CSS Visuals for Top Phrases
+    st.markdown("""
+    <style>
+    .phrase-tag {
+        display: inline-block;
+        padding: 6px 12px;
+        margin: 4px;
+        border-radius: 20px;
+        color: #fff;
+        font-size: 14px;
+        font-weight: 500;
+        backdrop-filter: blur(4px);
+        border: 1px solid rgba(255,255,255,0.1);
+        transition: transform 0.2s;
+    }
+    .phrase-tag:hover {
+        transform: scale(1.05);
+        border-color: #D4AF37;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
+    if top_bigrams:
+        max_count = top_bigrams[0][1]
+        html = "<div style='text-align: center; padding: 20px;'>"
+        for phrase, count in top_bigrams:
+            # Opacity based on frequency
+            opacity = 0.3 + 0.7 * (count / max_count)
+            # Gold color with varying opacity
+            bg_color = f"rgba(212, 175, 55, {opacity})" 
+            html += f"<span class='phrase-tag' style='background: {bg_color};' title='Count: {count}'>{phrase}</span>"
+        html += "</div>"
+        st.markdown(html, unsafe_allow_html=True)
+    else:
+        st.info("💡 Not enough data to generate top phrases yet. Try adding more diverse prompts!")
 
-# === Tab 2: 习惯追踪 ===
-with tab_habit:
-    if has_time:
-        st.subheader(t('habit_heatmap_header'))
-        
-        daily_counts = df['date'].value_counts().reset_index()
-        daily_counts.columns = ['date', 'count']
-        daily_counts['date'] = pd.to_datetime(daily_counts['date'])
-        
-        c1, c2 = st.columns([2, 1])
-        
-        with c1:
-            st.caption(t('trend_caption'))
-            fig_trend = px.bar(daily_counts.sort_values('date'), x='date', y='count', 
-                              color='count', color_continuous_scale='Blues', template="plotly_dark")
-            luxury_chart(fig_trend, title=t('trend_caption'))
-            st.plotly_chart(fig_trend, use_container_width=True)
+    # === Tab 2: 习惯追踪 ===
+    with tab_habit:
+        if has_time:
+            st.subheader(t('habit_heatmap_header'))
             
-        with c2:
-            st.caption(t('hour_caption'))
-            hour_counts = df['hour'].value_counts().sort_index().reset_index()
-            hour_counts.columns = ['hour', 'count']
+            daily_counts = df['date'].value_counts().reset_index()
+            daily_counts.columns = ['date', 'count']
+            daily_counts['date'] = pd.to_datetime(daily_counts['date'])
             
-            tab_bar, tab_line = st.tabs([t('tab_bar'), t('tab_line')])
+            c1, c2 = st.columns([2, 1])
             
-            with tab_bar:
-                fig_bar = px.bar(
-                    hour_counts, x='hour', y='count',
-                    template="plotly_dark"
-                )
-                fig_bar.update_traces(marker_color='#D4AF37')
-                luxury_chart(fig_bar, title=t('hour_caption'))
-                fig_bar.update_layout(xaxis=dict(tickmode='linear', dtick=2))
-                st.plotly_chart(fig_bar, use_container_width=True)
+            with c1:
+                st.caption(t('trend_caption'))
+                fig_trend = px.bar(daily_counts.sort_values('date'), x='date', y='count', 
+                                  color='count', color_continuous_scale='Blues', template="plotly_dark")
+                luxury_chart(fig_trend, title=t('trend_caption'))
+                st.plotly_chart(fig_trend, use_container_width=True)
                 
-            with tab_line:
-                fig_hour = px.line(hour_counts, x='hour', y='count', markers=True, template="plotly_dark")
-                fig_hour.update_traces(line_color='#6A5ACD')
-                luxury_chart(fig_hour, title=t('hour_caption'))
-                st.plotly_chart(fig_hour, use_container_width=True)
-            
-    else:
-        st.warning(t('habit_warning'))
+            with c2:
+                st.caption(t('hour_caption'))
+                hour_counts = df['hour'].value_counts().sort_index().reset_index()
+                hour_counts.columns = ['hour', 'count']
+                
+                tab_bar, tab_line = st.tabs([t('tab_bar'), t('tab_line')])
+                
+                with tab_bar:
+                    fig_bar = px.bar(
+                        hour_counts, x='hour', y='count',
+                        template="plotly_dark"
+                    )
+                    fig_bar.update_traces(marker_color='#D4AF37')
+                    luxury_chart(fig_bar, title=t('hour_caption'))
+                    fig_bar.update_layout(xaxis=dict(tickmode='linear', dtick=2))
+                    st.plotly_chart(fig_bar, use_container_width=True)
+                    
+                with tab_line:
+                    fig_hour = px.line(hour_counts, x='hour', y='count', markers=True, template="plotly_dark")
+                    fig_hour.update_traces(line_color='#6A5ACD')
+                    luxury_chart(fig_hour, title=t('hour_caption'))
+                    st.plotly_chart(fig_hour, use_container_width=True)
+                
+        else:
+            st.warning(t('habit_warning'))
 
-# === Tab 3: 原始数据 ===
-with tab_data:
-    st.subheader(t('search_header'))
-    
-    col_search, col_filter = st.columns([3, 1])
-    with col_search:
-        q = st.text_input(t('search_placeholder'), placeholder="Python, Writing...")
-    with col_filter:
-        min_score = st.slider(t('min_score_label'), 0, 100, 0)
-    
-    filtered_df = df.copy()
-    if q:
-        filtered_df = filtered_df[filtered_df['prompt'].str.contains(q, case=False)]
-    filtered_df = filtered_df[filtered_df['complexity'] >= min_score]
-    
-    if has_time:
-        filtered_df['time_str'] = filtered_df['time'].dt.strftime('%Y-%m-%d %H:%M')
-        show_cols = ['time_str', 'prompt', 'complexity', 'len']
-    else:
-        show_cols = ['prompt', 'complexity', 'len']
+    # === Tab 3: 原始数据 ===
+    with tab_data:
+        st.subheader(t('search_header'))
         
-    st.dataframe(
-        filtered_df[show_cols].sort_values('complexity', ascending=False),
-        column_config={
-            "prompt": st.column_config.TextColumn(t('col_content'), width="large"),
-            "complexity": st.column_config.ProgressColumn(t('col_score'), format="%d", min_value=0, max_value=100),
-            "len": st.column_config.NumberColumn(t('col_len')),
-            "time_str": st.column_config.TextColumn(t('col_time'))
-        },
-        use_container_width=True,
-        height=600,
-        hide_index=True
-    )
+        col_search, col_filter = st.columns([3, 1])
+        with col_search:
+            q = st.text_input(t('search_placeholder'), placeholder="Python, Writing...")
+        with col_filter:
+            min_score = st.slider(t('min_score_label'), 0, 100, 0)
+        
+        filtered_df = df.copy()
+        if q:
+            filtered_df = filtered_df[filtered_df['prompt'].str.contains(q, case=False)]
+        filtered_df = filtered_df[filtered_df['complexity'] >= min_score]
+        
+        if has_time:
+            filtered_df['time_str'] = filtered_df['time'].dt.strftime('%Y-%m-%d %H:%M')
+            show_cols = ['time_str', 'prompt', 'complexity', 'len']
+        else:
+            show_cols = ['prompt', 'complexity', 'len']
+            
+        st.dataframe(
+            filtered_df[show_cols].sort_values('complexity', ascending=False),
+            column_config={
+                "prompt": st.column_config.TextColumn(t('col_content'), width="large"),
+                "complexity": st.column_config.ProgressColumn(t('col_score'), format="%d", min_value=0, max_value=100),
+                "len": st.column_config.NumberColumn(t('col_len')),
+                "time_str": st.column_config.TextColumn(t('col_time'))
+            },
+            use_container_width=True,
+            height=600,
+            hide_index=True
+        )
+
+    # === Tab 4: 数据管理 ===
+    with tab_manage:
+        st.subheader(t('manage_header'))
+        
+        if 'delete_indices' not in st.session_state:
+            st.session_state.delete_indices = []
+
+        manage_df = df.copy()
+        if has_time:
+            manage_df['time_str'] = manage_df['time'].dt.strftime('%Y-%m-%d %H:%M')
+        else:
+            manage_df['time_str'] = "N/A"
+            
+        manage_df['delete'] = False
+        
+        edited_df = st.data_editor(
+            manage_df[['delete', 'prompt', 'time_str', 'len']],
+            column_config={
+                "delete": st.column_config.CheckboxColumn("Select", width="small"),
+                "prompt": st.column_config.TextColumn(t('col_content'), width="large"),
+                "time_str": st.column_config.TextColumn(t('col_time'), width="medium"),
+                "len": st.column_config.NumberColumn(t('col_len'), width="small")
+            },
+            hide_index=True,
+            use_container_width=True,
+            height=500
+        )
+        
+        to_delete = edited_df[edited_df['delete'] == True]
+        
+        if not to_delete.empty:
+            if st.button(f"{t('delete_btn')} ({len(to_delete)})", type="primary"):
+                # Perform deletion
+                # We need to find the original indices. Since df matches lines/timestamps lists by index
+                delete_indices = set(to_delete.index)
+                
+                new_lines = []
+                new_timestamps = []
+                new_sources = []
+                
+                for i in range(len(lines)):
+                    if i not in delete_indices:
+                        new_lines.append(lines[i])
+                        if timestamps: new_timestamps.append(timestamps[i])
+                        if sources: new_sources.append(sources[i])
+                
+                # Update Cache
+                st.session_state.cached_data['lines'] = new_lines
+                st.session_state.cached_data['timestamps'] = new_timestamps
+                st.session_state.cached_data['sources'] = new_sources
+                
+                st.success("Deleted successfully! Reloading...")
+                st.rerun()

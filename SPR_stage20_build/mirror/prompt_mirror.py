@@ -604,14 +604,11 @@ with st.sidebar:
     st.markdown("---")
     with st.expander(t('privacy_title')):
         st.markdown(t('privacy_content'))
-        try:
-            st.page_link("pages/Privacy_Policy.py", label="📄 Full Privacy Policy", icon="⚖️")
-        except:
-            st.markdown("[📄 Full Privacy Policy (Click Here)](/Privacy_Policy)")
+        st.markdown("[📄 Full Privacy Policy (Click Here)](/?page=privacy)")
             
         st.markdown("---")
         st.caption("👇 **Copy for Google Store:**")
-        st.code("https://selfpromptlearner-syaacpnx6umxrnf8uj5vwn.streamlit.app/Privacy_Policy", language="text")
+        st.code("https://selfpromptlearner-syaacpnx6umxrnf8uj5vwn.streamlit.app/?page=privacy", language="text")
 
 # --- 关键 CSS 动画定义 ---
 st.markdown("""

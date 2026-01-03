@@ -4,3 +4,4 @@ jieba
 matplotlib
 wordcloud
 plotly
+ijson

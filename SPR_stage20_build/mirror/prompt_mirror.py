@@ -5,6 +5,7 @@ import re
 import json
 import numpy as np
 import nltk
+import random
 from wordcloud import WordCloud
 from collections import Counter
 from datetime import datetime, timedelta
@@ -235,12 +236,33 @@ TRANSLATIONS = {
     'col_time': {
         'en': "Time",
         'zh': "时间"
+    },
+    'tab_evolution': {
+        'en': "⏳ Time Travel",
+        'zh': "⏳ 思维进化"
+    },
+    'evolution_header': {
+        'en': "Chronicles of Thought",
+        'zh': "思维进化史"
+    },
+    'evolution_chart_title': {
+        'en': "Thinking Volume & Complexity Trend",
+        'zh': "思维量与复杂度演变趋势"
+    },
+    'golden_header': {
+        'en': "🏆 Golden Prompts Hall of Fame",
+        'zh': "🏆 金牌提示词长廊"
+    },
+    'golden_caption': {
+        'en': "Your most complex and structured thoughts.",
+        'zh': "那些闪耀着逻辑光辉的巅峰之作。"
     }
 }
 
 def t(key):
     """Get translated text based on session state"""
-    return TRANSLATIONS.get(key, {}).get(st.session_state.lang, key)
+    val = TRANSLATIONS.get(key, {}).get(st.session_state.lang, key)
+    return str(val) if val is not None else ""
 
 # --- NLTK Setup (Fail-safe) ---
 try:
@@ -274,7 +296,7 @@ english_stops.update({
     "generate", "rewrite", "revise", "optimize", "check", "verify", "explain",
     "translation", "translate", "english", "chinese", "text", "sentence", "paragraph",
     "based", "following", "provided", "below", "above", "result", "answer", "question",
-    "style", "tone", "ensure", "make", "sure", "include", "example", "list"
+    "style", "tone", "ensure", "make", "sure", "include", "example", "list", "none"
 })
 
 # 中文停用词 (De-noising)
@@ -471,6 +493,7 @@ luxury_css = """
     .stApp {
         background: radial-gradient(circle at 50% 10%, #1e293b 0%, #0f172a 40%, #020617 100%) !important;
         color: #e2e8f0;
+        font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
     }
 
     /* Noise Texture Overlay */
@@ -481,96 +504,118 @@ luxury_css = """
         left: 0;
         width: 100vw;
         height: 100vh;
-        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.04'/%3E%3C/svg%3E");
         pointer-events: none;
         z-index: 0;
     }
 
-    /* Liquid Glass Cards */
-    .stMetric, .stDataFrame, .stPlotlyChart {
+    /* Glassmorphism Cards */
+    .stMetric, .stDataFrame, .stPlotlyChart, div[data-testid="stExpander"] {
         background: rgba(255, 255, 255, 0.03) !important;
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
         border: 1px solid rgba(255, 255, 255, 0.08) !important;
         border-radius: 16px !important;
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
-        padding: 16px !important;
+        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        padding: 20px !important;
         transition: all 0.3s ease;
     }
 
-    .stMetric:hover, .stDataFrame:hover {
-        background: rgba(255, 255, 255, 0.05) !important;
+    .stMetric:hover, .stDataFrame:hover, .stPlotlyChart:hover {
+        background: rgba(255, 255, 255, 0.06) !important;
         border: 1px solid rgba(255, 255, 255, 0.15) !important;
         transform: translateY(-2px);
-        box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.3);
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Typography */
+    h1, h2, h3 {
+        color: #f8fafc !important;
+        font-weight: 200 !important;
+        letter-spacing: -0.5px;
+        text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    }
+    
+    p, li, .stMarkdown {
+        color: rgba(255,255,255,0.85) !important;
+        font-weight: 300;
+        line-height: 1.6;
     }
 
     /* Metric Values (Champagne Gold) */
     [data-testid="stMetricValue"] {
         color: #D4AF37 !important;
         font-family: 'Helvetica Neue', sans-serif;
-        font-weight: 300;
-        text-shadow: 0 0 20px rgba(212, 175, 55, 0.3);
+        font-weight: 200;
+        text-shadow: 0 0 25px rgba(212, 175, 55, 0.4);
     }
     
-    /* Metric Labels (Soft White) */
+    /* Metric Labels */
     [data-testid="stMetricLabel"] {
-        color: rgba(255, 255, 255, 0.7) !important;
-        font-size: 0.9em;
-        letter-spacing: 0.5px;
+        color: rgba(255, 255, 255, 0.6) !important;
+        font-size: 0.85em;
+        letter-spacing: 1px;
+        text-transform: uppercase;
     }
 
     /* Sidebar Luxury */
     [data-testid="stSidebar"] {
-        background: rgba(15, 23, 42, 0.95) !important;
+        background: rgba(15, 23, 42, 0.98) !important;
         border-right: 1px solid rgba(255, 255, 255, 0.05);
     }
     
-    /* Buttons (Glassy) */
+    /* Buttons (Glassy & Neon) */
     .stButton > button {
         background: rgba(255, 255, 255, 0.05) !important;
         color: #D4AF37 !important;
         border: 1px solid rgba(212, 175, 55, 0.3) !important;
         border-radius: 8px;
-        transition: all 0.3s;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-size: 12px;
     }
     .stButton > button:hover {
-        background: rgba(212, 175, 55, 0.1) !important;
+        background: rgba(212, 175, 55, 0.15) !important;
         border-color: #D4AF37 !important;
-        box-shadow: 0 0 15px rgba(212, 175, 55, 0.2);
+        box-shadow: 0 0 20px rgba(212, 175, 55, 0.3);
+        transform: scale(1.02);
     }
 
-    /* Titles */
-    h1, h2, h3 {
-        color: #f8fafc !important;
-        font-weight: 300 !important;
-        letter-spacing: -0.5px;
-    }
-
-
-    /* File Uploader Enhancement (High Visibility) */
+    /* File Uploader Enhancement */
     [data-testid="stFileUploader"] {
-        background: rgba(255, 255, 255, 0.05);
-        border: 2px dashed rgba(255, 255, 255, 0.3);
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px dashed rgba(255, 255, 255, 0.2);
         border-radius: 16px;
-        padding: 30px;
+        padding: 40px;
         transition: all 0.3s ease;
         text-align: center;
     }
     [data-testid="stFileUploader"]:hover {
-        background: rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.05);
         border-color: #D4AF37;
-        box-shadow: 0 0 20px rgba(212, 175, 55, 0.2);
-        transform: scale(1.02);
+        box-shadow: 0 0 30px rgba(212, 175, 55, 0.15);
     }
     [data-testid="stFileUploader"] section {
         background: transparent !important;
     }
     [data-testid="stFileUploader"] button {
-        background: rgba(212, 175, 55, 0.2) !important;
+        background: rgba(212, 175, 55, 0.1) !important;
         color: #D4AF37 !important;
         border: 1px solid #D4AF37 !important;
-        font-weight: bold;
+    }
+    
+    /* Expander */
+    .streamlit-expanderHeader {
+        background-color: transparent !important;
+        color: #e2e8f0 !important;
+        font-weight: 500;
+    }
+    
+    /* Progress Bar */
+    .stProgress > div > div > div > div {
+        background: linear-gradient(90deg, #D4AF37, #F7E7CE);
+        box-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
     }
 </style>
 """
@@ -668,49 +713,103 @@ sources = []
 
 if up:
     try:
-        content = up.read().decode('utf-8', errors='ignore')
         new_lines = []
         new_timestamps = []
         new_sources = []
         
         if up.name.endswith('.json'):
+            import ijson
             try:
+                # Use ijson for streaming parsing to handle large files (e.g. 300MB+)
+                # Check structure by reading first item or prefix
+                # Heuristic: ChatGPT exports usually start with a list of conversations
+                
+                # We need to detect if it's a list of conversations (official export) 
+                # or a simple list of prompts (our extension export)
+                
+                # Let's try to stream items. 
+                # If it's a list, ijson.items(f, 'item') yields elements.
+                
+                # Rewind file pointer just in case
+                up.seek(0)
+                
+                # Check first character to see if it's a list or dict
+                first_char = up.read(1).decode('utf-8', errors='ignore').strip()
+                up.seek(0)
+                
+                is_official_export = False
+                # Official export is a list of conversation objects
+                # Our extension export is a list of simple objects {"text": "...", "ts": ...}
+                
+                # We'll iterate and check the structure of the first item
+                parser = ijson.items(up, 'item')
+                
+                for item in parser:
+                    # Case A: Official ChatGPT Export (conversations.json)
+                    if 'mapping' in item:
+                        is_official_export = True
+                        for k, v in item['mapping'].items():
+                            if v['message'] and v['message']['author']['role'] == 'user':
+                                content = v['message'].get('content')
+                                parts = content.get('parts') if isinstance(content, dict) else None
+                                if parts and isinstance(parts[0], str):
+                                    text = parts[0]
+                                    if exclude_short and len(text) < 5: continue
+                                    new_lines.append(text)
+                                    ct = v['message'].get('create_time')
+                                    if ct: new_timestamps.append(datetime.fromtimestamp(float(ct)))
+                                    new_sources.append('chatgpt_export')
+                    
+                    # Case B: Our Extension Export (my_prompts.json)
+                    elif 'text' in item:
+                        text = item.get('text', '')
+                        # Junk Filter
+                        if exclude_short and len(text) < 5: continue
+                        if re.match(r'^[\s\d\W]+$', text): continue
+                        
+                        # Strict Filter
+                        if strict_filter:
+                            if len(text) < 10: continue
+                            if any(w in text.lower() for w in ["test", "hello", "hi", "你好", "测试", "demo"]): continue
+                        
+                        if text.lower().strip() in ["hi", "hello", "test", "testing", "你好", "测试"]: continue
+                        
+                        new_lines.append(text)
+                        ts = item.get('ts', 0)
+                        if ts > 0: new_timestamps.append(datetime.fromtimestamp(ts / 1000))
+                        new_sources.append(item.get('src', 'unknown'))
+                
+            except Exception as e:
+                # Fallback to standard json load if ijson fails or for small files structure mismatch
+                st.warning(f"Stream parsing failed, trying legacy load... ({str(e)})")
+                up.seek(0)
+                content = up.read().decode('utf-8', errors='ignore')
                 data = json.loads(content)
+                # ... (Original Logic for fallback) ...
                 if isinstance(data, list) and len(data) > 0:
                     if 'text' in data[0]: 
                         for item in data:
                             text = item.get('text', '')
-                            # Junk Filter: Remove pure punctuation/numbers or very short generic words
                             if exclude_short and len(text) < 5: continue
-                            if re.match(r'^[\s\d\W]+$', text): continue # Only symbols/numbers
-                            
-                            # Strict Filter
-                            if strict_filter:
-                                if len(text) < 10: continue
-                                if any(w in text.lower() for w in ["test", "hello", "hi", "你好", "测试", "demo"]): continue
-                            
-                            if text.lower().strip() in ["hi", "hello", "test", "testing", "你好", "测试"]: continue
-                            
                             new_lines.append(text)
                             ts = item.get('ts', 0)
                             if ts > 0: new_timestamps.append(datetime.fromtimestamp(ts / 1000))
-                            new_sources.append(item.get('src', 'unknown'))
                     elif 'mapping' in data[0]:
                          for conv in data:
                             if 'mapping' in conv:
                                 for k, v in conv['mapping'].items():
                                     if v['message'] and v['message']['author']['role'] == 'user':
-                                        parts = v['message']['content']['parts']
-                                        if parts: 
-                                            text = str(parts[0])
+                                        content = v['message'].get('content')
+                                        parts = content.get('parts') if isinstance(content, dict) else None
+                                        if parts and isinstance(parts[0], str): 
+                                            text = parts[0]
                                             if exclude_short and len(text) < 5: continue
                                             new_lines.append(text)
                                             ct = v['message'].get('create_time')
-                                            if ct: new_timestamps.append(datetime.fromtimestamp(ct))
-            except json.JSONDecodeError:
-                pass 
+                                            if ct: new_timestamps.append(datetime.fromtimestamp(float(ct)))
 
         if not new_lines: 
+             content = up.getvalue().decode('utf-8', errors='ignore') # Read only if not json or json failed
              if up.name.endswith('.jsonl'):
                 for line in content.splitlines():
                     if line.strip():
@@ -816,27 +915,62 @@ word_counts = Counter(words)
 
 # --- Luxury Chart Helper ---
 def luxury_chart(fig, title=None, show_median=False, df_col=None):
+    """
+    Applies a premium, luxury style to Plotly charts.
+    """
     fig.update_layout(
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
-        font=dict(color='rgba(255,255,255,0.7)', family="Helvetica Neue"),
-        title=dict(text=title, font=dict(color='#f8fafc', size=16)),
-        xaxis=dict(showgrid=False, zeroline=False, color='rgba(255,255,255,0.4)'),
-        yaxis=dict(showgrid=True, gridwidth=1, gridcolor='rgba(255,255,255,0.05)', zeroline=False, color='rgba(255,255,255,0.4)'),
-        margin=dict(l=20, r=20, t=50, b=20),
-        hovermode="x unified"
+        font=dict(color='rgba(255,255,255,0.9)', family="Helvetica Neue"),
+        title=dict(
+            text=f"<b>{title}</b>" if title else None,
+            font=dict(color='#D4AF37', size=24, family="Helvetica Neue"), # Larger & Gold
+            x=0,
+            xanchor='left'
+        ),
+        xaxis=dict(
+            showgrid=False, 
+            zeroline=False, 
+            color='rgba(255,255,255,0.8)',
+            title_font=dict(size=16, color='rgba(255,255,255,0.7)', family="Helvetica Neue", weight="bold"),
+            tickfont=dict(size=14, family="Helvetica Neue")
+        ),
+        yaxis=dict(
+            showgrid=True, 
+            gridwidth=1, 
+            gridcolor='rgba(255,255,255,0.1)', 
+            zeroline=False, 
+            color='rgba(255,255,255,0.8)',
+            title_font=dict(size=16, color='rgba(255,255,255,0.7)', family="Helvetica Neue", weight="bold"),
+            tickfont=dict(size=14, family="Helvetica Neue")
+        ),
+        margin=dict(l=20, r=20, t=80, b=40), # More top margin for big title
+        hovermode="x unified",
+        hoverlabel=dict(
+            bgcolor="rgba(20, 20, 30, 0.95)",
+            bordercolor="#D4AF37",
+            font=dict(color="white", size=14)
+        ),
+        showlegend=True,
+        legend=dict(
+            bgcolor='rgba(0,0,0,0)',
+            font=dict(size=14, color='rgba(255,255,255,0.9)'),
+            title_font=dict(size=14, color='#D4AF37')
+        )
     )
+    
+    # Add subtle border/glow effect via shapes if needed, but CSS handles card styling better.
     
     if show_median and df_col is not None:
         median = df_col.median()
         p90 = df_col.quantile(0.9)
         
         # Add Lines
-        fig.add_vline(x=median, line_width=1, line_dash="dash", line_color="#D4AF37", opacity=0.8)
-        fig.add_annotation(x=median, y=1, yref="paper", text=f"Med: {int(median)}", showarrow=False, font=dict(color="#D4AF37", size=10), yshift=10)
+        fig.add_vline(x=median, line_width=1.5, line_dash="dash", line_color="#D4AF37", opacity=0.9)
+        fig.add_annotation(x=median, y=1, yref="paper", text=f"Med: {int(median)}", showarrow=False, font=dict(color="#D4AF37", size=11, family="monospace"), yshift=15, bgcolor="rgba(0,0,0,0.5)")
         
-        fig.add_vline(x=p90, line_width=1, line_dash="dot", line_color="#6A5ACD", opacity=0.8)
-        fig.add_annotation(x=p90, y=1, yref="paper", text=f"P90: {int(p90)}", showarrow=False, font=dict(color="#6A5ACD", size=10), yshift=10)
+        fig.add_vline(x=p90, line_width=1.5, line_dash="dot", line_color="#6A5ACD", opacity=0.9)
+        fig.add_annotation(x=p90, y=1, yref="paper", text=f"P90: {int(p90)}", showarrow=False, font=dict(color="#6A5ACD", size=11, family="monospace"), yshift=15, bgcolor="rgba(0,0,0,0.5)")
 
     return fig
 
@@ -852,7 +986,7 @@ c4.metric(t('metric_top_word'), top_word)
 st.divider()
 
 # --- Tab 布局 ---
-tab_insight, tab_habit, tab_data, tab_manage = st.tabs([t('tab_insight'), t('tab_habit'), t('tab_data'), t('tab_manage')])
+tab_insight, tab_evolution, tab_soul, tab_habit, tab_data, tab_manage = st.tabs([t('tab_insight'), t('tab_evolution'), "🔮 SoulPrint", t('tab_habit'), t('tab_data'), t('tab_manage')])
 
 # === Tab 1: 思维洞察 ===
 with tab_insight:
@@ -962,10 +1096,10 @@ with tab_insight:
         if words:
             # WordCloud with Luxury Colors
             def luxury_color_func(word, font_size, position, orientation, random_state=None, **kwargs):
-                return "hsl(46, 65%, 60%)" if random_state.randint(0, 1) else "hsl(245, 40%, 70%)"
+                return "hsl(46, 65%, 60%)" if random.randint(0, 1) else "hsl(245, 40%, 70%)"
 
             wc = WordCloud(font_path=font_path, width=800, height=500, 
-                          background_color=None, mode="RGBA", # Transparent
+                          background_color="rgba(0,0,0,0)", mode="RGBA", # Transparent
                           max_words=80, collocations=False,
                           color_func=luxury_color_func).generate(" ".join(words))
             st.image(wc.to_array(), use_column_width=True)
@@ -1079,6 +1213,590 @@ with tab_insight:
     else:
         st.info("💡 Not enough data to generate top phrases yet. Try adding more diverse prompts!")
 
+    # === Tab 1.5: 思维进化 (Time Travel) ===
+    with tab_evolution:
+        st.subheader(t('evolution_header'))
+        
+        if has_time:
+            # 1. 聚合数据 (按周)
+            df['date_week'] = df['time'].dt.to_period('W').dt.start_time
+            evolution_df = df.groupby('date_week').agg({
+                'prompt': 'count',
+                'complexity': 'mean'
+            }).reset_index().rename(columns={'prompt': 'count'})
+            
+            # 2. 双轴图表 (Quantity vs Quality)
+            fig_evo = go.Figure()
+            
+            # 左轴：Prompt 数量 (Quantity)
+            fig_evo.add_trace(go.Scatter(
+                x=evolution_df['date_week'], 
+                y=evolution_df['count'],
+                name=t('count_label'),
+                mode='lines+markers',
+                line=dict(color='rgba(255, 255, 255, 0.3)', width=2, dash='dot'),
+                marker=dict(size=6, color='rgba(255, 255, 255, 0.5)'),
+                fill='tozeroy',
+                fillcolor='rgba(255, 255, 255, 0.05)'
+            ))
+            
+            # 右轴：平均复杂度 (Quality)
+            fig_evo.add_trace(go.Scatter(
+                x=evolution_df['date_week'], 
+                y=evolution_df['complexity'],
+                name="Avg Complexity",
+                mode='lines+markers',
+                line=dict(color='#D4AF37', width=4, shape='spline'),
+                marker=dict(size=10, color='#D4AF37', line=dict(width=2, color='#000')),
+                yaxis='y2'
+            ))
+            
+            fig_evo.update_layout(
+                title=t('evolution_chart_title'),
+                yaxis=dict(title=t('count_label'), showgrid=False, zeroline=False),
+                yaxis2=dict(title="Complexity", overlaying='y', side='right', showgrid=True, gridwidth=1, gridcolor='rgba(255,255,255,0.1)', range=[0, 100]),
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                font=dict(color='rgba(255,255,255,0.8)'),
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                hovermode="x unified"
+            )
+            st.plotly_chart(fig_evo, use_container_width=True)
+            
+            # 3. 类别进化堆叠图 (Category Evolution)
+            st.markdown("### Category Evolution")
+            
+            # 计算每周各类别占比
+            # 这种计算比较耗时，我们做简单处理：每周各类别关键词命中数
+            
+            # Helper to count categories per week
+            def get_week_categories(grp):
+                text = " ".join(grp['prompt'].tolist())
+                scores = {k: 0 for k in category_defs.keys()}
+                for w in process_tokens([text]): # Use cached tokenizer
+                    for cat_key, cat_data in category_defs.items():
+                        if w in cat_data['keywords']:
+                            scores[cat_key] += 1
+                return pd.Series(scores)
+
+            cat_evo_df = df.groupby('date_week').apply(get_week_categories).reset_index()
+            
+            # 归一化处理 (显示占比)
+            cat_cols = list(category_defs.keys())
+            cat_evo_df['total'] = cat_evo_df[cat_cols].sum(axis=1)
+            # Avoid division by zero
+            cat_evo_df = cat_evo_df[cat_evo_df['total'] > 0] 
+            
+            for c in cat_cols:
+                cat_evo_df[c] = cat_evo_df[c] / cat_evo_df['total']
+                
+            # Plot Stacked Area
+            fig_stack = go.Figure()
+            colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEEAD'] # Luxury Pastels
+            
+            for idx, cat in enumerate(cat_cols):
+                fig_stack.add_trace(go.Scatter(
+                    x=cat_evo_df['date_week'],
+                    y=cat_evo_df[cat],
+                    name=category_defs[cat][f'label_{st.session_state.lang}'],
+                    mode='lines',
+                    stackgroup='one',
+                    groupnorm='percent', # Normalize to 100%
+                    line=dict(width=0.5, color=colors[idx % len(colors)]),
+                    fillcolor=colors[idx % len(colors)]
+                ))
+                
+            luxury_chart(fig_stack, title="Focus Shift Over Time")
+            fig_stack.update_layout(yaxis=dict(range=[0, 100], ticksuffix='%'))
+            st.plotly_chart(fig_stack, use_container_width=True)
+
+        else:
+            st.warning(t('habit_warning'))
+
+        # 4. Golden Prompts (无论有无时间戳都能显示)
+        st.divider()
+        st.subheader(t('golden_header'))
+        st.caption(t('golden_caption'))
+        
+        # Top 3 Complex Prompts
+        top_prompts = df.sort_values('complexity', ascending=False).head(3)
+        
+        cols = st.columns(3)
+        for i, (idx, row) in enumerate(top_prompts.iterrows()):
+            with cols[i]:
+                st.markdown(f"""
+                <div style="
+                    background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(212,175,55,0.1) 100%);
+                    border: 1px solid rgba(212,175,55,0.3);
+                    border-radius: 12px;
+                    padding: 20px;
+                    height: 300px;
+                    overflow-y: auto;
+                    position: relative;
+                ">
+                    <div style="position: absolute; top: 10px; right: 10px; font-size: 24px;">{'🥇🥈🥉'[i]}</div>
+                    <div style="color: #D4AF37; font-size: 12px; font-weight: bold; margin-bottom: 8px;">COMPLEXITY: {row['complexity']}</div>
+                    <div style="color: rgba(255,255,255,0.9); font-size: 14px; line-height: 1.6;">
+                        {row['prompt'][:300] + '...' if len(row['prompt']) > 300 else row['prompt']}
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+
+    # === Tab SoulPrint: AI 替身报告 ===
+    with tab_soul:
+        st.subheader("🔮 SoulPrint: AI Persona Mirror")
+        st.progress(100, text="Completion: 100% (Luxury Edition)")
+        
+        st.caption("Based on Big Five, MBTI, Enneagram, Jungian, DISC, HEXACO & 16 Core Emotions")
+        
+        # 定义关键词库 (Data Layer) - Full 6 Models + 16 Emotions
+        PSYCH_KEYWORDS = {
+            # 1. Big Five (OCEAN)
+            'Openness': ['imagine', 'create', 'new', 'idea', 'design', 'concept', 'art', 'style', 'music', 'story', 'novel', 'curious', 'explore', 'dream', 'fantasy', '创意', '设计', '想象', '风格', '好奇', '探索', '梦'],
+            'Conscientiousness': ['plan', 'structure', 'organize', 'schedule', 'goal', 'task', 'list', 'check', 'verify', 'rule', 'standard', 'discipline', 'focus', 'duty', 'order', '计划', '结构', '目标', '任务', '自律', '专注', '秩序'],
+            'Extraversion': ['team', 'share', 'talk', 'discuss', 'meet', 'social', 'party', 'group', 'friend', 'connect', 'communicate', 'express', 'active', 'energy', 'outgoing', '分享', '讨论', '社交', '沟通', '表达', '活跃', '外向'],
+            'Agreeableness': ['help', 'please', 'thanks', 'kind', 'care', 'love', 'support', 'agree', 'team', 'cooperate', 'empathy', 'trust', 'forgive', 'soft', 'gentle', '感谢', '请', '帮助', '支持', '合作', '共情', '信任'],
+            'Neuroticism': ['worry', 'fear', 'anxious', 'stress', 'fail', 'error', 'bug', 'crash', 'urgent', 'help', 'panic', 'broken', 'nervous', 'moody', 'upset', '焦虑', '担心', '错误', '紧急', '恐慌', '紧张', '情绪'],
+            
+            # 2. MBTI Dimensions
+            'MBTI_E': ['talk', 'discuss', 'group', 'social', 'meeting', 'speak', 'say', 'party', 'public', '讨论', '群', '社交', '会议', '说'],
+            'MBTI_I': ['think', 'read', 'write', 'alone', 'quiet', 'reflect', 'private', 'self', 'internal', '思考', '读', '写', '独自', '安静', '反思'],
+            'MBTI_S': ['fact', 'data', 'detail', 'real', 'practical', 'step', 'history', 'experience', 'sense', '事实', '数据', '细节', '现实', '实用', '步骤'],
+            'MBTI_N': ['idea', 'concept', 'future', 'theory', 'meaning', 'pattern', 'vision', 'possibility', 'abstract', '想法', '概念', '未来', '理论', '意义', '模式'],
+            'MBTI_T': ['logic', 'reason', 'analyze', 'critique', 'objective', 'principle', 'rule', 'justice', 'truth', '逻辑', '分析', '批判', '客观', '原则', '真相'],
+            'MBTI_F': ['feel', 'value', 'harmony', 'empathy', 'compassion', 'care', 'people', 'subjective', 'moral', '感受', '价值', '和谐', '同情', '关心', '人', '道德'],
+            'MBTI_J': ['plan', 'decide', 'close', 'finish', 'order', 'schedule', 'deadline', 'control', 'structure', '计划', '决定', '完成', '秩序', '日程', '截止'],
+            'MBTI_P': ['open', 'adapt', 'change', 'flow', 'option', 'flexible', 'spontaneous', 'wait', 'explore', '开放', '适应', '变化', '选项', '灵活', '等待'],
+
+            # 3. Enneagram (9 Types Triggers)
+            'Enneagram_1_Reformer': ['perfect', 'correct', 'right', 'improve', 'standard', 'error', 'fix', 'best', '完美', '正确', '改进', '标准', '错误', '修复'],
+            'Enneagram_2_Helper': ['help', 'give', 'care', 'support', 'need', 'love', 'service', 'friend', '帮助', '给予', '关心', '支持', '需要', '爱', '服务'],
+            'Enneagram_3_Achiever': ['success', 'goal', 'win', 'achieve', 'result', 'efficient', 'image', 'status', '成功', '目标', '赢', '成就', '结果', '效率'],
+            'Enneagram_4_Individualist': ['unique', 'special', 'feeling', 'express', 'deep', 'meaning', 'authentic', 'self', '独特', '特别', '感觉', '表达', '深', '意义'],
+            'Enneagram_5_Investigator': ['know', 'learn', 'understand', 'analyze', 'observe', 'knowledge', 'why', 'how', '知道', '学习', '理解', '分析', '观察', '知识'],
+            'Enneagram_6_Loyalist': ['safe', 'secure', 'trust', 'rule', 'plan', 'worry', 'prepare', 'guide', '安全', '信任', '规则', '计划', '担心', '准备'],
+            'Enneagram_7_Enthusiast': ['fun', 'happy', 'new', 'excited', 'experience', 'freedom', 'option', 'plan', '有趣', '快乐', '新', '兴奋', '体验', '自由'],
+            'Enneagram_8_Challenger': ['control', 'power', 'strong', 'lead', 'fight', 'protect', 'justice', 'direct', '控制', '力量', '强', '领导', '战斗', '保护'],
+            'Enneagram_9_Peacemaker': ['peace', 'calm', 'harmony', 'agree', 'relax', 'easy', 'avoid', 'quiet', '和平', '平静', '和谐', '同意', '放松', '简单'],
+
+            # 4. Jungian Archetypes
+            'Archetype_Hero': ['hero', 'save', 'win', 'brave', 'courage', 'fight', 'overcome', 'champion', '英雄', '拯救', '赢', '勇敢', '勇气', '战斗'],
+            'Archetype_Sage': ['truth', 'wisdom', 'knowledge', 'understand', 'teach', 'learn', 'expert', 'guide', '真理', '智慧', '知识', '理解', '教', '学'],
+            'Archetype_Lover': ['love', 'passion', 'beauty', 'desire', 'intimacy', 'connect', 'relationship', 'romance', '爱', '激情', '美', '渴望', '亲密', '关系'],
+            'Archetype_Creator': ['create', 'make', 'build', 'invent', 'design', 'vision', 'art', 'innovate', '创造', '制造', '建立', '发明', '设计', '愿景'],
+            'Archetype_Rebel': ['break', 'change', 'free', 'rule', 'disrupt', 'revolution', 'different', 'shock', '打破', '改变', '自由', '规则', '颠覆', '革命'],
+
+            # 5. DISC
+            'DISC_D': ['lead', 'control', 'power', 'win', 'result', 'goal', 'challenge', 'direct', 'fast', 'action', 'now', '领导', '控制', '结果', '挑战'],
+            'DISC_I': ['persuade', 'inspire', 'talk', 'fun', 'story', 'people', 'social', 'network', 'express', 'idea', '影响', '说服', '有趣', '故事'],
+            'DISC_S': ['stable', 'calm', 'support', 'listen', 'patient', 'team', 'loyal', 'process', 'step', 'slow', '稳定', '耐心', '支持', '流程'],
+            'DISC_C': ['rule', 'standard', 'detail', 'fact', 'data', 'analyze', 'check', 'correct', 'system', 'procedure', '规则', '细节', '数据', '准确'],
+            
+            # 6. HEXACO (Honesty-Humility)
+            'Honesty-Humility': ['truth', 'honest', 'fair', 'sincere', 'humble', 'modest', 'greed', 'cheat', 'fake', 'lie', 'moral', 'ethical', '诚实', '公平', '谦虚', '真相', '道德']
+        }
+
+        EMOTION_KEYWORDS = {
+            # A组：内耗类
+            'Shame': ['shame', 'embarrassed', 'humiliated', 'sorry', 'bad', 'stupid', 'hide', 'disgrace', '羞耻', '丢人', '不好意思', '笨', '躲', '耻辱'],
+            'Anxiety': ['anxious', 'worry', 'nervous', 'stress', 'tense', 'panic', 'urgent', 'deadline', 'afraid', 'uneasy', '焦虑', '紧张', '压力', '慌', '急'],
+            'Guilt': ['guilt', 'regret', 'sorry', 'fault', 'blame', 'mistake', 'wrong', 'apologize', 'remorse', 'bad', '内疚', '后悔', '对不起', '错', '怪我'],
+            'Fear': ['fear', 'scared', 'afraid', 'terrified', 'danger', 'threat', 'risk', 'safe', 'horror', 'dread', '恐惧', '害怕', '危险', '不敢', '恐怖'],
+            'Disgust': ['disgust', 'hate', 'gross', 'sick', 'nasty', 'ugly', 'awful', 'bad', 'repulsive', 'revolt', '讨厌', '恶心', '烂', '差', '反感'],
+            
+            # B组：外攻类
+            'Envy': ['envy', 'jealous', 'unfair', 'why him', 'wish', 'better', 'compare', 'covet', 'resent', 'rival', '嫉妒', '羡慕', '不公', '凭什么', '攀比'],
+            'Anger': ['angry', 'mad', 'furious', 'rage', 'hate', 'stupid', 'idiot', 'annoy', 'hostile', 'fight', '愤怒', '生气', '火大', '混蛋', '仇恨'],
+            'Frustration': ['frustrated', 'annoyed', 'stuck', 'hard', 'difficult', 'fail', 'slow', 'block', 'irritate', 'bother', '烦躁', '不爽', '卡住', '难', '烦'],
+            
+            # C组：情感回响类
+            'Nostalgia': ['remember', 'memory', 'past', 'old', 'time', 'miss', 'back', 'childhood', 'retro', 'recall', '怀旧', '回忆', '过去', '想念', '童年'],
+            'Moved': ['moved', 'touching', 'cry', 'tear', 'warm', 'heart', 'kind', 'sweet', 'inspire', 'emotion', '感动', '泪', '暖心', '温情', '触动'],
+            
+            # D组：平和稳定类
+            'Calm': ['calm', 'peace', 'relax', 'quiet', 'still', 'meditate', 'breath', 'zen', 'stable', 'balance', '平静', '安宁', '放松', '安静', '稳定'],
+            'Satisfaction': ['satisfy', 'content', 'good', 'enough', 'done', 'finish', 'complete', 'ok', 'fulfill', 'pleased', '满足', '够了', '完成', '舒服', '满意'],
+            
+            # E组：正向能量类
+            'Surprise': ['wow', 'surprise', 'amazing', 'shock', 'unexpected', 'sudden', 'boom', 'cool', 'wonder', 'astonish', '惊喜', '哇', '意外', '酷', '震惊'],
+            'Joy': ['happy', 'joy', 'fun', 'laugh', 'smile', 'glad', 'great', 'awesome', 'delight', 'cheer', '快乐', '开心', '笑', '棒', '喜悦'],
+            'Pride': ['proud', 'best', 'win', 'success', 'achieve', 'master', 'top', 'strong', 'confident', 'glory', '自豪', '骄傲', '成功', '强', '自信'],
+            'Love': ['love', 'like', 'care', 'adore', 'passion', 'heart', 'dear', 'friend', 'romance', 'affection', '爱', '喜欢', '关心', '情', '浪漫']
+        }
+
+        # V-A-D Coordinates for 3D Chart
+        EMOTION_COORDS = {
+            'Shame': (-0.8, -0.2, -0.8), 'Anxiety': (-0.6, 0.8, -0.7), 'Guilt': (-0.7, 0.3, -0.6),
+            'Fear': (-0.9, 0.9, -0.9), 'Disgust': (-0.8, 0.2, -0.5), 'Envy': (-0.6, 0.6, -0.2),
+            'Anger': (-0.7, 0.9, 0.4), 'Frustration': (-0.5, 0.7, -0.1), 'Nostalgia': (0.4, -0.4, 0.1),
+            'Moved': (0.6, 0.1, 0.2), 'Calm': (0.8, -0.8, 0.6), 'Satisfaction': (0.7, -0.6, 0.7),
+            'Surprise': (0.6, 0.8, 0.2), 'Joy': (0.9, 0.7, 0.6), 'Pride': (0.8, 0.6, 0.9), 'Love': (0.9, 0.5, 0.7)
+        }
+
+        # 计算评分 (New Relative Dominance Algorithm)
+        @st.cache_data
+        def calculate_soul_metrics(text_list):
+            tokens = process_tokens(text_list) 
+            
+            # Raw Counts
+            psych_raw = {k: 0 for k in PSYCH_KEYWORDS.keys()}
+            emotion_raw = {k: 0 for k in EMOTION_KEYWORDS.keys()}
+            
+            for token in tokens:
+                for k, v in PSYCH_KEYWORDS.items():
+                    if token in v: psych_raw[k] += 1
+                for k, v in EMOTION_KEYWORDS.items():
+                    if token in v: emotion_raw[k] += 1
+            
+            # Helper to normalize within a group
+            def normalize_group(raw_dict, keys):
+                group_vals = [raw_dict[k] for k in keys]
+                max_val = max(group_vals) if group_vals else 0
+                if max_val == 0: return {k: 0 for k in keys}
+                # Scale: Max becomes 95, others proportional
+                return {k: int((raw_dict[k] / max_val) * 95) for k in keys}
+
+            # 1. Big Five Normalization
+            b5_keys = ['Openness', 'Conscientiousness', 'Extraversion', 'Agreeableness', 'Neuroticism']
+            b5_scores = normalize_group(psych_raw, b5_keys)
+            
+            # 2. MBTI Normalization (Per Pair)
+            mbti_pairs = [('MBTI_E', 'MBTI_I'), ('MBTI_S', 'MBTI_N'), ('MBTI_T', 'MBTI_F'), ('MBTI_J', 'MBTI_P')]
+            mbti_scores = {}
+            for k1, k2 in mbti_pairs:
+                raw1, raw2 = psych_raw[k1], psych_raw[k2]
+                total = raw1 + raw2
+                if total == 0:
+                    mbti_scores[k1] = 0
+                    mbti_scores[k2] = 0
+                else:
+                    # Difference scaling
+                    mbti_scores[k1] = int((raw1 / total) * 100)
+                    mbti_scores[k2] = int((raw2 / total) * 100)
+
+            # 3. Enneagram Normalization
+            ennea_keys = [k for k in PSYCH_KEYWORDS if k.startswith('Enneagram')]
+            ennea_scores = normalize_group(psych_raw, ennea_keys)
+
+            # 4. Archetype Normalization
+            arch_keys = [k for k in PSYCH_KEYWORDS if k.startswith('Archetype')]
+            arch_scores = normalize_group(psych_raw, arch_keys)
+            
+            # 5. DISC Normalization
+            disc_keys = ['DISC_D', 'DISC_I', 'DISC_S', 'DISC_C']
+            disc_scores = normalize_group(psych_raw, disc_keys)
+            
+            # 6. HEXACO (Just H) - Normalize against global max to see if it's significant
+            max_global = max(psych_raw.values()) if psych_raw.values() else 1
+            hex_score = int((psych_raw['Honesty-Humility'] / max_global) * 100)
+            
+            # Emotions
+            max_emo = max(emotion_raw.values()) if emotion_raw.values() else 1
+            emotion_scores = {k: int((v / max_emo) * 100) for k,v in emotion_raw.items()}
+
+            # Merge all psych scores
+            final_psych = {**b5_scores, **mbti_scores, **ennea_scores, **arch_scores, **disc_scores, 'Honesty-Humility': hex_score}
+            
+            return {
+                'psych': final_psych,
+                'emotion': emotion_scores,
+                'raw_psych': psych_raw,
+                'raw_emotion': emotion_raw
+            }
+
+        soul_data = calculate_soul_metrics(lines)
+        p_scores = soul_data['psych']
+        e_scores = soul_data['emotion']
+        
+        # --- 1. Soul Card (Identity) ---
+        big5_keys = ['Openness', 'Conscientiousness', 'Extraversion', 'Agreeableness', 'Neuroticism']
+        dom_big5 = max(big5_keys, key=lambda k: p_scores.get(k, 0))
+        
+        arch_keys = [k for k in p_scores if k.startswith('Archetype')]
+        dom_arch = max(arch_keys, key=lambda k: p_scores.get(k, 0)) if arch_keys else 'Archetype_Sage'
+        dom_arch_name = dom_arch.split('_')[1]
+        
+        titles_map = {
+            'Openness': f"The Visionary {dom_arch_name}",
+            'Conscientiousness': f"The Diligent {dom_arch_name}",
+            'Extraversion': f"The Charismatic {dom_arch_name}",
+            'Agreeableness': f"The Harmonious {dom_arch_name}",
+            'Neuroticism': f"The Intense {dom_arch_name}"
+        }
+        title = titles_map.get(dom_big5, "The Wandering Soul")
+
+        ennea_keys = [k for k in p_scores if k.startswith('Enneagram')]
+        if ennea_keys:
+            dom_ennea = max(ennea_keys, key=lambda k: p_scores.get(k, 0))
+            ennea_type = dom_ennea.split('_')[1]
+            ennea_name = dom_ennea.split('_')[2]
+            desc = f"Driven by the {ennea_name} spirit (Type {ennea_type})."
+        else:
+            desc = "A balanced soul wandering the digital realm."
+            
+        # Fix: HTML Render without indent issues
+        soul_card_html = """<div style="background: linear-gradient(180deg, rgba(20,20,20,0.8) 0%, rgba(0,0,0,0.8) 100%); border: 1px solid #D4AF37; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 0 30px rgba(212, 175, 55, 0.15); margin-bottom: 30px;"><div style="font-size: 72px; margin-bottom: 15px; filter: drop-shadow(0 0 10px rgba(212,175,55,0.5));">🧙‍♂️</div><div style="font-family: 'Helvetica Neue', serif; color: #D4AF37; font-size: 32px; font-weight: 200; letter-spacing: 1px; margin-bottom: 10px; text-transform: uppercase;">{title}</div><div style="color: rgba(255,255,255,0.6); font-size: 16px; font-style: italic; font-weight: 300; margin-bottom: 30px;">"{desc}"</div><div style="display: flex; justify-content: center; gap: 40px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 25px;"><div><div style="color: #6A5ACD; font-size: 24px; font-weight: bold;">{openness}</div><div style="color: rgba(255,255,255,0.4); font-size: 11px; letter-spacing: 1px;">OPENNESS</div></div><div><div style="color: #4ECDC4; font-size: 24px; font-weight: bold;">{conscientious}</div><div style="color: rgba(255,255,255,0.4); font-size: 11px; letter-spacing: 1px;">CONSCIENTIOUS</div></div><div><div style="color: #FF6B6B; font-size: 24px; font-weight: bold;">{extraversion}</div><div style="color: rgba(255,255,255,0.4); font-size: 11px; letter-spacing: 1px;">EXTRAVERSION</div></div></div></div>""".format(
+            title=title,
+            desc=desc,
+            openness=p_scores.get('Openness', 0),
+            conscientious=p_scores.get('Conscientiousness', 0),
+            extraversion=p_scores.get('Extraversion', 0)
+        )
+        st.markdown(soul_card_html, unsafe_allow_html=True)
+
+        # --- Session 1: Big Five ---
+        st.markdown("### ✅ Session 1: Big Five (OCEAN)")
+        with st.expander("📖 Model Definition & Wiki", expanded=False):
+            st.markdown("""
+            **Most widely used personality theory, based on empirical data.**
+            *   **Openness**: Curious, original, intellectual, creative.
+            *   **Conscientiousness**: Organized, systematic, punctual.
+            *   **Extraversion**: Outgoing, talkative, sociable.
+            *   **Agreeableness**: Affable, tolerant, sensitive.
+            *   **Neuroticism**: Anxious, irritable, temperamental.
+            🔗 [Wikipedia: Big Five personality traits](https://en.wikipedia.org/wiki/Big_Five_personality_traits)
+            """)
+        
+        b5_vals = [p_scores.get(k, 0) for k in big5_keys]
+        fig_b5 = px.bar(x=b5_vals, y=big5_keys, orientation='h', template="plotly_dark", title="Your OCEAN Profile")
+        fig_b5.update_traces(
+            marker_color='#D4AF37', 
+            width=0.6,
+            marker=dict(line=dict(width=1, color='rgba(255,255,255,0.5)'), pattern=dict(shape="/")) # Texture
+        )
+        luxury_chart(fig_b5, "Your OCEAN Profile")
+        fig_b5.update_layout(xaxis=dict(range=[0, 100], title="Relative Strength (0-100)"), yaxis=dict(title="Trait"))
+        st.plotly_chart(fig_b5, use_container_width=True)
+
+        # --- Session 2: MBTI ---
+        st.markdown("### ✅ Session 2: MBTI (Myers-Briggs)")
+        with st.expander("📖 Model Definition & Wiki", expanded=False):
+            st.markdown("""
+            **Based on Jungian typology, categorizing personalities into 16 types.**
+            🔗 [Wikipedia: Myers–Briggs Type Indicator](https://en.wikipedia.org/wiki/Myers%E2%80%93Briggs_Type_Indicator)
+            """)
+        
+        mbti_data = [
+            {'Dim': 'Energy', 'Type': 'Extraversion (E)', 'Score': p_scores.get('MBTI_E', 0), 'Color': '#FF6B6B'},
+            {'Dim': 'Energy', 'Type': 'Introversion (I)', 'Score': -p_scores.get('MBTI_I', 0), 'Color': '#4ECDC4'},
+            {'Dim': 'Info', 'Type': 'Sensing (S)', 'Score': p_scores.get('MBTI_S', 0), 'Color': '#FF6B6B'},
+            {'Dim': 'Info', 'Type': 'Intuition (N)', 'Score': -p_scores.get('MBTI_N', 0), 'Color': '#4ECDC4'},
+            {'Dim': 'Decision', 'Type': 'Thinking (T)', 'Score': p_scores.get('MBTI_T', 0), 'Color': '#FF6B6B'},
+            {'Dim': 'Decision', 'Type': 'Feeling (F)', 'Score': -p_scores.get('MBTI_F', 0), 'Color': '#4ECDC4'},
+            {'Dim': 'Structure', 'Type': 'Judging (J)', 'Score': p_scores.get('MBTI_J', 0), 'Color': '#FF6B6B'},
+            {'Dim': 'Structure', 'Type': 'Perceiving (P)', 'Score': -p_scores.get('MBTI_P', 0), 'Color': '#4ECDC4'},
+        ]
+        df_mbti = pd.DataFrame(mbti_data)
+        fig_mbti = px.bar(df_mbti, x='Score', y='Dim', color='Type', orientation='h', template="plotly_dark", 
+                          color_discrete_map={'Extraversion (E)': '#FF6B6B', 'Introversion (I)': '#4ECDC4',
+                                            'Sensing (S)': '#FF6B6B', 'Intuition (N)': '#4ECDC4',
+                                            'Thinking (T)': '#FF6B6B', 'Feeling (F)': '#4ECDC4',
+                                            'Judging (J)': '#FF6B6B', 'Perceiving (P)': '#4ECDC4'})
+        
+        # Apply texture to MBTI bars
+        fig_mbti.update_traces(marker=dict(line=dict(width=1, color='rgba(255,255,255,0.3)'), pattern=dict(shape="x")))
+        
+        luxury_chart(fig_mbti, "Cognitive Functions Balance")
+        fig_mbti.update_layout(xaxis=dict(range=[-100, 100], title="Tendency (< Left | Right >)"), yaxis=dict(title="Dimension"), barmode='relative')
+        st.plotly_chart(fig_mbti, use_container_width=True)
+
+        # --- Session 3: Enneagram ---
+        st.markdown("### ✅ Session 3: Enneagram")
+        with st.expander("📖 Model Definition & Wiki", expanded=False):
+            st.markdown("""
+            **Describes 9 fundamental personality types.**
+            🔗 [Wikipedia: Enneagram of Personality](https://en.wikipedia.org/wiki/Enneagram_of_Personality)
+            """)
+        
+        ennea_labels = [k.split('_')[1] + " " + k.split('_')[2] for k in ennea_keys]
+        ennea_vals = [p_scores.get(k, 0) for k in ennea_keys]
+        
+        fig_ennea = px.line_polar(r=ennea_vals, theta=ennea_labels, line_close=True, template="plotly_dark")
+        fig_ennea.update_traces(fill='toself', line_color='#FF6B6B', fillcolor='rgba(255, 107, 107, 0.3)')
+        luxury_chart(fig_ennea, "Enneagram Type Radar")
+        fig_ennea.update_layout(polar=dict(bgcolor='rgba(0,0,0,0)', radialaxis=dict(visible=True, range=[0, 100], showticklabels=False)))
+        st.plotly_chart(fig_ennea, use_container_width=True)
+
+        # --- Session 4: Jungian ---
+        st.markdown("### ✅ Session 4: Jungian Archetypes")
+        arch_labels = [k.split('_')[1] for k in arch_keys]
+        # Icon Map
+        ARCH_ICONS = {
+            'Hero': '🛡️', 'Sage': '🧙‍♂️', 'Lover': '❤️', 
+            'Creator': '🎨', 'Rebel': '🔥'
+        }
+        arch_labels_icons = [f"{ARCH_ICONS.get(l, '')} {l}" for l in arch_labels]
+        
+        arch_vals = [p_scores.get(k, 0) for k in arch_keys]
+        fig_arch = px.bar(x=arch_labels_icons, y=arch_vals, template="plotly_dark")
+        fig_arch.update_traces(
+            marker_color='#4ECDC4',
+            marker=dict(line=dict(width=1, color='rgba(255,255,255,0.5)'), pattern=dict(shape="+")) # Texture
+        )
+        luxury_chart(fig_arch, "Dominant Archetypes")
+        fig_arch.update_layout(yaxis=dict(range=[0, 100], title="Score"), xaxis=dict(title="Archetype", tickfont=dict(size=16)))
+        st.plotly_chart(fig_arch, use_container_width=True)
+
+        # --- Session 5: DISC ---
+        st.markdown("### ✅ Session 5: DISC Model")
+        disc_keys = ['DISC_D', 'DISC_I', 'DISC_S', 'DISC_C']
+        disc_vals = [p_scores.get(k, 0) for k in disc_keys]
+        fig_disc = px.pie(values=disc_vals, names=['Dominance', 'Influence', 'Steadiness', 'Conscientiousness'], hole=0.6, template="plotly_dark")
+        fig_disc.update_traces(
+            textposition='outside', 
+            textinfo='percent+label', 
+            marker=dict(
+                colors=['#FF6B6B', '#FFD93D', '#6BCB77', '#4D96FF'],
+                pattern=dict(shape=".") # Texture dot
+            )
+        )
+        luxury_chart(fig_disc, "Behavioral Style Composition")
+        st.plotly_chart(fig_disc, use_container_width=True)
+
+        # --- Session 6: HEXACO ---
+        st.markdown("### ✅ Session 6: HEXACO (H-Factor)")
+        hex_val = p_scores.get('Honesty-Humility', 0)
+        st.metric("Honesty-Humility Score", f"{hex_val}/100")
+        st.progress(hex_val)
+
+        # --- Session 7: Emotions ---
+        st.divider()
+        st.markdown("### 🎭 Session 7: Emotional Spectrum (V-A-D)")
+        
+        # Mnemonics - Simplified
+        st.info("🧠 **Quick Memory Guide:**\n"
+                "• **Low Energy (Depressive)**: Shame, Guilt, Sadness\n"
+                "• **High Energy (Explosive)**: Anger, Anxiety, Surprise\n"
+                "• **Positive Flow**: Joy, Love, Pride\n"
+                "• **Neutral/Stable**: Calm, Satisfaction")
+
+        # 3D Galaxy - Improved
+        x, y, z, s, c, txt, labels = [], [], [], [], [], [], []
+        
+        # 1. Collect Data
+        active_emotions = []
+        for emo, (vx, vy, vz) in EMOTION_COORDS.items():
+            score = e_scores.get(emo, 0)
+            if score > 5: # Only show relevant emotions
+                # Color mapping based on Valence (X)
+                if vx < -0.3: col = '#FF6B6B' # Negative (Red)
+                elif vx > 0.3: col = '#4ECDC4' # Positive (Teal)
+                else: col = '#FFD93D' # Neutral (Yellow)
+                
+                active_emotions.append({
+                    'emo': emo,
+                    'x': vx, 'y': vy, 'z': vz,
+                    's': score * 0.8 + 15, # Reduced size multiplier (was 1.5 + 20)
+                    'c': col,
+                    'score': score
+                })
+
+        # 2. Simple Repulsion (Prevent Overlap)
+        # Simple iterative layout adjustment
+        for i in range(len(active_emotions)):
+            for j in range(i + 1, len(active_emotions)):
+                p1 = active_emotions[i]
+                p2 = active_emotions[j]
+                dist = ((p1['x']-p2['x'])**2 + (p1['y']-p2['y'])**2 + (p1['z']-p2['z'])**2)**0.5
+                min_dist = 0.3 # Minimum distance threshold
+                if dist < min_dist:
+                    # Push apart
+                    dx, dy, dz = p1['x']-p2['x'], p1['y']-p2['y'], p1['z']-p2['z']
+                    if abs(dx) < 0.01: dx = 0.01 # Avoid zero div
+                    factor = (min_dist - dist) / 2
+                    p1['x'] += dx * factor; p1['y'] += dy * factor; p1['z'] += dz * factor
+                    p2['x'] -= dx * factor; p2['y'] -= dy * factor; p2['z'] -= dz * factor
+
+        # 3. Build Lists
+        for item in active_emotions:
+            x.append(item['x'])
+            y.append(item['y'])
+            z.append(item['z'])
+            s.append(item['s'])
+            c.append(item['c'])
+            labels.append(f"<b>{item['emo']}</b>")
+            txt.append(f"<b>{item['emo']}</b><br>Score: {item['score']}")
+
+        fig_galaxy = go.Figure()
+        
+        # Add Origin Axes with Arrows and Labels (3D)
+        # 1. The Lines (White, Semi-transparent)
+        fig_galaxy.add_trace(go.Scatter3d(x=[-1.2, 1.2], y=[0, 0], z=[0, 0], mode='lines', line=dict(color='rgba(255,255,255,0.3)', width=5), hoverinfo='none', showlegend=False))
+        fig_galaxy.add_trace(go.Scatter3d(x=[0, 0], y=[-1.2, 1.2], z=[0, 0], mode='lines', line=dict(color='rgba(255,255,255,0.3)', width=5), hoverinfo='none', showlegend=False))
+        fig_galaxy.add_trace(go.Scatter3d(x=[0, 0], y=[0, 0], z=[-1.2, 1.2], mode='lines', line=dict(color='rgba(255,255,255,0.3)', width=5), hoverinfo='none', showlegend=False))
+
+        # 2. The Arrowheads (Cones) at Positive Ends
+        fig_galaxy.add_trace(go.Cone(
+            x=[1.25, 0, 0], 
+            y=[0, 1.25, 0], 
+            z=[0, 0, 1.25],
+            u=[0.5, 0, 0], 
+            v=[0, 0.5, 0], 
+            w=[0, 0, 0.5],
+            sizemode="absolute", sizeref=0.15, anchor="tail",
+            colorscale=[[0, 'white'], [1, 'white']], showscale=False,
+            hoverinfo='none', name="Direction"
+        ))
+
+        # 3. Positive Axis Labels (Gold, Bold)
+        fig_galaxy.add_trace(go.Scatter3d(
+            x=[1.4, 0, 0], 
+            y=[0, 1.4, 0], 
+            z=[0, 0, 1.4],
+            mode='text',
+            text=["<b>Valence (+)</b><br>(Joy/Love)", "<b>Arousal (+)</b><br>(Excited/Angry)", "<b>Dominance (+)</b><br>(In Control)"],
+            textposition="middle center",
+            textfont=dict(color='#D4AF37', size=12, family="Helvetica Neue"),
+            hoverinfo='none', showlegend=False
+        ))
+        
+        # 4. Negative Axis Labels (Subtle)
+        fig_galaxy.add_trace(go.Scatter3d(
+            x=[-1.4, 0, 0], 
+            y=[0, -1.4, 0], 
+            z=[0, 0, -1.4],
+            mode='text',
+            text=["Valence (-)<br>(Sad/Fear)", "Arousal (-)<br>(Calm/Sleepy)", "Dominance (-)<br>(Submissive)"],
+            textposition="middle center",
+            textfont=dict(color='rgba(255,255,255,0.4)', size=10, family="Helvetica Neue"),
+            hoverinfo='none', showlegend=False
+        ))
+
+        if x:
+            fig_galaxy.add_trace(go.Scatter3d(
+                x=x, y=y, z=z, mode='markers+text',
+                marker=dict(size=s, color=c, opacity=0.9, line=dict(width=2, color='white')),
+                text=labels, textposition="top center",
+                textfont=dict(color='white', size=16, family="Helvetica Neue", weight="bold"), # Bigger and bolder
+                hovertext=txt, hoverinfo='text'
+            ))
+
+        luxury_chart(fig_galaxy, "🌌 Emotional Galaxy (V-A-D Space)")
+        fig_galaxy.update_layout(
+            scene=dict(
+                xaxis=dict(title=dict(text='Valence', font=dict(size=14)), range=[-1.5, 1.5], showgrid=True, zeroline=False),
+                yaxis=dict(title=dict(text='Arousal', font=dict(size=14)), range=[-1.5, 1.5], showgrid=True, zeroline=False),
+                zaxis=dict(title=dict(text='Dominance', font=dict(size=14)), range=[-1.5, 1.5], showgrid=True, zeroline=False),
+                aspectmode='cube', bgcolor='rgba(0,0,0,0)'
+            ),
+            height=700
+        )
+        st.plotly_chart(fig_galaxy, use_container_width=True)
+        
+        # 2D Breakdown
+        emo_df = pd.DataFrame({'Emotion': list(e_scores.keys()), 'Score': list(e_scores.values())})
+        emo_df = emo_df[emo_df['Score'] > 0].sort_values(by='Score', ascending=False)
+        fig_emo_bar = px.bar(emo_df, x='Score', y='Emotion', orientation='h', template="plotly_dark", 
+                             color='Score', color_continuous_scale='Spectral')
+        # Add texture to 2D bar
+        fig_emo_bar.update_traces(marker=dict(line=dict(width=1, color='rgba(255,255,255,0.3)'), pattern=dict(shape="|")))
+        
+        luxury_chart(fig_emo_bar, "Emotion Ranking")
+        fig_emo_bar.update_layout(xaxis=dict(title="Intensity Score (0-100)"), yaxis=dict(title="Emotion"))
+        st.plotly_chart(fig_emo_bar, use_container_width=True)
+
+
     # === Tab 2: 习惯追踪 ===
     with tab_habit:
         if has_time:
@@ -1092,7 +1810,7 @@ with tab_insight:
             
             with c1:
                 st.caption(t('trend_caption'))
-                fig_trend = px.bar(daily_counts.sort_values('date'), x='date', y='count', 
+                fig_trend = px.bar(daily_counts.sort_values(by='date'), x='date', y='count', 
                                   color='count', color_continuous_scale='Blues', template="plotly_dark")
                 luxury_chart(fig_trend, title=t('trend_caption'))
                 st.plotly_chart(fig_trend, use_container_width=True)
@@ -1139,13 +1857,13 @@ with tab_insight:
         filtered_df = filtered_df[filtered_df['complexity'] >= min_score]
         
         if has_time:
-            filtered_df['time_str'] = filtered_df['time'].dt.strftime('%Y-%m-%d %H:%M')
+            filtered_df['time_str'] = filtered_df['time'].apply(lambda x: x.strftime('%Y-%m-%d %H:%M') if pd.notnull(x) else '')
             show_cols = ['time_str', 'prompt', 'complexity', 'len']
         else:
             show_cols = ['prompt', 'complexity', 'len']
             
         st.dataframe(
-            filtered_df[show_cols].sort_values('complexity', ascending=False),
+            pd.DataFrame(filtered_df[show_cols]).sort_values(by='complexity', ascending=False),
             column_config={
                 "prompt": st.column_config.TextColumn(t('col_content'), width="large"),
                 "complexity": st.column_config.ProgressColumn(t('col_score'), format="%d", min_value=0, max_value=100),
@@ -1166,7 +1884,7 @@ with tab_insight:
 
         manage_df = df.copy()
         if has_time:
-            manage_df['time_str'] = manage_df['time'].dt.strftime('%Y-%m-%d %H:%M')
+            manage_df['time_str'] = manage_df['time'].apply(lambda x: x.strftime('%Y-%m-%d %H:%M') if pd.notnull(x) else '')
         else:
             manage_df['time_str'] = "N/A"
             
@@ -1187,7 +1905,7 @@ with tab_insight:
         
         to_delete = edited_df[edited_df['delete'] == True]
         
-        if not to_delete.empty:
+        if len(to_delete) > 0:
             if st.button(f"{t('delete_btn')} ({len(to_delete)})", type="primary"):
                 # Perform deletion
                 # We need to find the original indices. Since df matches lines/timestamps lists by index
@@ -1204,9 +1922,10 @@ with tab_insight:
                         if sources: new_sources.append(sources[i])
                 
                 # Update Cache
-                st.session_state.cached_data['lines'] = new_lines
-                st.session_state.cached_data['timestamps'] = new_timestamps
-                st.session_state.cached_data['sources'] = new_sources
+                if st.session_state.cached_data:
+                    st.session_state.cached_data['lines'] = new_lines
+                    st.session_state.cached_data['timestamps'] = new_timestamps
+                    st.session_state.cached_data['sources'] = new_sources
                 
                 st.success("Deleted successfully! Reloading...")
                 st.rerun()

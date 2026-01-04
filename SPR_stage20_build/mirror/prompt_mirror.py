@@ -54,8 +54,8 @@ TRANSLATIONS = {
         'zh': "⚙️ 偏好设置"
     },
     'filter_short': {
-        'en': "Filter short prompts (<5 chars)",
-        'zh': "过滤短 Prompt (<5字)"
+        'en': "Filter short prompts (<8 chars)",
+        'zh': "过滤短 Prompt (<8字)"
     },
     'privacy_header': {
         'en': "### Privacy Note",
@@ -296,7 +296,8 @@ english_stops.update({
     "generate", "rewrite", "revise", "optimize", "check", "verify", "explain",
     "translation", "translate", "english", "chinese", "text", "sentence", "paragraph",
     "based", "following", "provided", "below", "above", "result", "answer", "question",
-    "style", "tone", "ensure", "make", "sure", "include", "example", "list", "none"
+    "style", "tone", "ensure", "make", "sure", "include", "example", "list", "none",
+    "response", "assistant", "user", "input", "task", "description", "detail", "analysis"
 })
 
 # 中文停用词 (De-noising)
@@ -307,7 +308,7 @@ chinese_stops = {
     "扮演", "角色", "生成", "输出", "格式", "要求", "上下文", "步骤", "解释", "翻译",
     "英文", "中文", "代码", "文章", "内容", "以下", "以上", "提供", "基于", "使用",
     "不仅", "而且", "能够", "需要", "帮忙", "修改", "润色", "优化", "检查", "写一个",
-    "帮我写", "帮我看", "怎么写", "怎么做"
+    "帮我写", "帮我看", "怎么写", "怎么做", "分析", "设计", "实现", "回复", "助手", "用户"
 }
 
 # 页面配置
@@ -471,10 +472,10 @@ def get_chinese_font():
     system = platform.system()
     if system == "Darwin": # Mac
         fonts = [
+            "/System/Library/Fonts/Supplemental/Arial Unicode.ttf", # Best for WordCloud (TTF)
+            "/System/Library/Fonts/Hiragino Sans GB.ttc", # Second best
             "/System/Library/Fonts/PingFang.ttc", 
             "/System/Library/Fonts/STHeiti Light.ttc",
-            "/System/Library/Fonts/Hiragino Sans GB.ttc",
-            "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
             "/Library/Fonts/Arial Unicode.ttf"
         ]
         for f in fonts:
@@ -754,7 +755,7 @@ if up:
                                 parts = content.get('parts') if isinstance(content, dict) else None
                                 if parts and isinstance(parts[0], str):
                                     text = parts[0]
-                                    if exclude_short and len(text) < 5: continue
+                                    if exclude_short and len(text) < 8: continue
                                     new_lines.append(text)
                                     ct = v['message'].get('create_time')
                                     if ct: new_timestamps.append(datetime.fromtimestamp(float(ct)))
@@ -790,7 +791,7 @@ if up:
                     if 'text' in data[0]: 
                         for item in data:
                             text = item.get('text', '')
-                            if exclude_short and len(text) < 5: continue
+                            if exclude_short and len(text) < 8: continue
                             new_lines.append(text)
                             ts = item.get('ts', 0)
                             if ts > 0: new_timestamps.append(datetime.fromtimestamp(ts / 1000))
@@ -803,7 +804,7 @@ if up:
                                         parts = content.get('parts') if isinstance(content, dict) else None
                                         if parts and isinstance(parts[0], str): 
                                             text = parts[0]
-                                            if exclude_short and len(text) < 5: continue
+                                            if exclude_short and len(text) < 8: continue
                                             new_lines.append(text)
                                             ct = v['message'].get('create_time')
                                             if ct: new_timestamps.append(datetime.fromtimestamp(float(ct)))
@@ -917,7 +918,21 @@ word_counts = Counter(words)
 def luxury_chart(fig, title=None, show_median=False, df_col=None):
     """
     Applies a premium, luxury style to Plotly charts.
+    Includes gradient simulation, better fonts, and subtle glow.
     """
+    # Attempt to add gradient/shadow effect to bars if applicable
+    try:
+        # Check if it's a bar chart or similar that supports marker config
+        if fig.data and hasattr(fig.data[0], 'marker'):
+            # Enhance marker line for "glow" effect
+            fig.update_traces(
+                marker=dict(
+                    line=dict(width=1.5, color='rgba(255,255,255,0.4)'),
+                    opacity=0.85
+                )
+            )
+    except: pass
+
     fig.update_layout(
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
@@ -958,8 +973,6 @@ def luxury_chart(fig, title=None, show_median=False, df_col=None):
             title_font=dict(size=14, color='#D4AF37')
         )
     )
-    
-    # Add subtle border/glow effect via shapes if needed, but CSS handles card styling better.
     
     if show_median and df_col is not None:
         median = df_col.median()
@@ -1751,15 +1764,15 @@ with tab_insight:
             hoverinfo='none', showlegend=False
         ))
         
-        # 4. Negative Axis Labels (Subtle)
+        # 4. Negative Axis Labels (Optimized Position)
         fig_galaxy.add_trace(go.Scatter3d(
-            x=[-1.4, 0, 0], 
-            y=[0, -1.4, 0], 
-            z=[0, 0, -1.4],
+            x=[-1.5, 0, 0], 
+            y=[0, -1.5, 0], 
+            z=[0, 0, -1.5],
             mode='text',
             text=["Valence (-)<br>(Sad/Fear)", "Arousal (-)<br>(Calm/Sleepy)", "Dominance (-)<br>(Submissive)"],
             textposition="middle center",
-            textfont=dict(color='rgba(255,255,255,0.4)', size=10, family="Helvetica Neue"),
+            textfont=dict(color='rgba(255,255,255,0.6)', size=11, family="Helvetica Neue"),
             hoverinfo='none', showlegend=False
         ))
 
@@ -1786,7 +1799,7 @@ with tab_insight:
         
         # 2D Breakdown
         emo_df = pd.DataFrame({'Emotion': list(e_scores.keys()), 'Score': list(e_scores.values())})
-        emo_df = emo_df[emo_df['Score'] > 0].sort_values(by='Score', ascending=False)
+        emo_df = emo_df[emo_df['Score'] > 0].sort_values(by=['Score'], ascending=False) # type: ignore
         fig_emo_bar = px.bar(emo_df, x='Score', y='Emotion', orientation='h', template="plotly_dark", 
                              color='Score', color_continuous_scale='Spectral')
         # Add texture to 2D bar
@@ -1857,7 +1870,9 @@ with tab_insight:
         filtered_df = filtered_df[filtered_df['complexity'] >= min_score]
         
         if has_time:
-            filtered_df['time_str'] = filtered_df['time'].apply(lambda x: x.strftime('%Y-%m-%d %H:%M') if pd.notnull(x) else '')
+            # Explicitly cast to datetime to satisfy linter
+            time_series = pd.to_datetime(filtered_df['time'])
+            filtered_df['time_str'] = pd.Series(time_series).apply(lambda x: x.strftime('%Y-%m-%d %H:%M') if pd.notnull(x) else '')
             show_cols = ['time_str', 'prompt', 'complexity', 'len']
         else:
             show_cols = ['prompt', 'complexity', 'len']
@@ -1909,7 +1924,7 @@ with tab_insight:
             if st.button(f"{t('delete_btn')} ({len(to_delete)})", type="primary"):
                 # Perform deletion
                 # We need to find the original indices. Since df matches lines/timestamps lists by index
-                delete_indices = set(to_delete.index)
+                delete_indices = set(to_delete.index.tolist()) # type: ignore
                 
                 new_lines = []
                 new_timestamps = []

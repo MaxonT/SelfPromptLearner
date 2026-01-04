@@ -639,8 +639,21 @@ with col_title:
 # --- 侧边栏：上传与配置 ---
 with st.sidebar:
     st.header(t('upload_header'))
-    st.info(t('upload_info'))
-    up = st.file_uploader(t('upload_label'), type=["json", "txt", "jsonl"])
+    
+    # Enhanced Upload Area with Animation
+    st.markdown("""
+    <div style="text-align: center; margin-bottom: 10px; animation: pulse-gold 3s infinite;">
+        <div style="font-size: 40px;">📂</div>
+        <div style="color: rgba(255,255,255,0.7); font-size: 12px;">Drag & Drop JSON Here</div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    up = st.file_uploader(t('upload_label'), type=["json", "txt", "jsonl"], label_visibility="collapsed")
+    
+    if up:
+        st.success("File Loaded Successfully!", icon="✅")
+    else:
+        st.info(t('upload_info'), icon="ℹ️")
     
     st.divider()
     st.header(t('settings_header'))
@@ -657,26 +670,53 @@ with st.sidebar:
         st.code("https://selfpromptlearner-syaacpnx6umxrnf8uj5vwn.streamlit.app/?page=privacy", language="text")
 
 # --- 关键 CSS 动画定义 ---
-st.markdown("""
-<style>
-@keyframes bounce-left {
-  0%, 100% { transform: translateX(0); }
-  50% { transform: translateX(-10px); }
-}
-@keyframes bounce-up-right {
-  0%, 100% { transform: translate(0, 0); }
-  50% { transform: translate(10px, -10px); }
-}
-.animate-arrow {
-  animation: bounce-left 1.5s infinite ease-in-out;
-  display: inline-block;
-}
-.animate-arrow-ur {
-  animation: bounce-up-right 1.5s infinite ease-in-out;
-  display: inline-block;
-}
-</style>
-""", unsafe_allow_html=True)
+    st.markdown("""
+    <style>
+    @keyframes bounce-left {
+      0%, 100% { transform: translateX(0); }
+      50% { transform: translateX(-10px); }
+    }
+    @keyframes bounce-up-right {
+      0%, 100% { transform: translate(0, 0); }
+      50% { transform: translate(10px, -10px); }
+    }
+    @keyframes pulse-gold {
+      0% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.4); }
+      70% { box-shadow: 0 0 0 10px rgba(212, 175, 55, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0); }
+    }
+    .animate-arrow {
+      animation: bounce-left 1.5s infinite ease-in-out;
+      display: inline-block;
+    }
+    .animate-arrow-ur {
+      animation: bounce-up-right 1.5s infinite ease-in-out;
+      display: inline-block;
+    }
+    
+    /* Global Loading Spinner Customization */
+    .stSpinner > div {
+        border-top-color: #D4AF37 !important;
+    }
+    
+    /* Button Hover Transition */
+    .stButton button {
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+    }
+    .stButton button:active {
+        transform: scale(0.95) !important;
+    }
+    
+    /* Tab Hover Effect */
+    .stTabs [data-baseweb="tab"] {
+        transition: color 0.3s ease, background 0.3s ease;
+    }
+    .stTabs [data-baseweb="tab"]:hover {
+        color: #D4AF37 !important;
+        background: rgba(255,255,255,0.02);
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
 # --- Empty State (Onboarding Guide) ---
 def show_onboarding_guide():
@@ -713,125 +753,126 @@ timestamps = []
 sources = []
 
 if up:
-    try:
-        new_lines = []
-        new_timestamps = []
-        new_sources = []
-        
-        if up.name.endswith('.json'):
-            import ijson
-            try:
-                # Use ijson for streaming parsing to handle large files (e.g. 300MB+)
-                # Check structure by reading first item or prefix
-                # Heuristic: ChatGPT exports usually start with a list of conversations
-                
-                # We need to detect if it's a list of conversations (official export) 
-                # or a simple list of prompts (our extension export)
-                
-                # Let's try to stream items. 
-                # If it's a list, ijson.items(f, 'item') yields elements.
-                
-                # Rewind file pointer just in case
-                up.seek(0)
-                
-                # Check first character to see if it's a list or dict
-                first_char = up.read(1).decode('utf-8', errors='ignore').strip()
-                up.seek(0)
-                
-                is_official_export = False
-                # Official export is a list of conversation objects
-                # Our extension export is a list of simple objects {"text": "...", "ts": ...}
-                
-                # We'll iterate and check the structure of the first item
-                parser = ijson.items(up, 'item')
-                
-                for item in parser:
-                    # Case A: Official ChatGPT Export (conversations.json)
-                    if 'mapping' in item:
-                        is_official_export = True
-                        for k, v in item['mapping'].items():
-                            if v['message'] and v['message']['author']['role'] == 'user':
-                                content = v['message'].get('content')
-                                parts = content.get('parts') if isinstance(content, dict) else None
-                                if parts and isinstance(parts[0], str):
-                                    text = parts[0]
-                                    if exclude_short and len(text) < 8: continue
-                                    new_lines.append(text)
-                                    ct = v['message'].get('create_time')
-                                    if ct: new_timestamps.append(datetime.fromtimestamp(float(ct)))
-                                    new_sources.append('chatgpt_export')
+    with st.spinner("🧠 Decoding your mind palace... (Parsing JSON)"):
+        try:
+            new_lines = []
+            new_timestamps = []
+            new_sources = []
+            
+            if up.name.endswith('.json'):
+                import ijson
+                try:
+                    # Use ijson for streaming parsing to handle large files (e.g. 300MB+)
+                    # Check structure by reading first item or prefix
+                    # Heuristic: ChatGPT exports usually start with a list of conversations
                     
-                    # Case B: Our Extension Export (my_prompts.json)
-                    elif 'text' in item:
-                        text = item.get('text', '')
-                        # Junk Filter
-                        if exclude_short and len(text) < 5: continue
-                        if re.match(r'^[\s\d\W]+$', text): continue
+                    # We need to detect if it's a list of conversations (official export) 
+                    # or a simple list of prompts (our extension export)
+                    
+                    # Let's try to stream items. 
+                    # If it's a list, ijson.items(f, 'item') yields elements.
+                    
+                    # Rewind file pointer just in case
+                    up.seek(0)
+                    
+                    # Check first character to see if it's a list or dict
+                    first_char = up.read(1).decode('utf-8', errors='ignore').strip()
+                    up.seek(0)
+                    
+                    is_official_export = False
+                    # Official export is a list of conversation objects
+                    # Our extension export is a list of simple objects {"text": "...", "ts": ...}
+                    
+                    # We'll iterate and check the structure of the first item
+                    parser = ijson.items(up, 'item')
+                    
+                    for item in parser:
+                        # Case A: Official ChatGPT Export (conversations.json)
+                        if 'mapping' in item:
+                            is_official_export = True
+                            for k, v in item['mapping'].items():
+                                if v['message'] and v['message']['author']['role'] == 'user':
+                                    content = v['message'].get('content')
+                                    parts = content.get('parts') if isinstance(content, dict) else None
+                                    if parts and isinstance(parts[0], str):
+                                        text = parts[0]
+                                        if exclude_short and len(text) < 8: continue
+                                        new_lines.append(text)
+                                        ct = v['message'].get('create_time')
+                                        if ct: new_timestamps.append(datetime.fromtimestamp(float(ct)))
+                                        new_sources.append('chatgpt_export')
                         
-                        # Strict Filter
-                        if strict_filter:
-                            if len(text) < 10: continue
-                            if any(w in text.lower() for w in ["test", "hello", "hi", "你好", "测试", "demo"]): continue
-                        
-                        if text.lower().strip() in ["hi", "hello", "test", "testing", "你好", "测试"]: continue
-                        
-                        new_lines.append(text)
-                        ts = item.get('ts', 0)
-                        if ts > 0: new_timestamps.append(datetime.fromtimestamp(ts / 1000))
-                        new_sources.append(item.get('src', 'unknown'))
-                
-            except Exception as e:
-                # Fallback to standard json load if ijson fails or for small files structure mismatch
-                st.warning(f"Stream parsing failed, trying legacy load... ({str(e)})")
-                up.seek(0)
-                content = up.read().decode('utf-8', errors='ignore')
-                data = json.loads(content)
-                # ... (Original Logic for fallback) ...
-                if isinstance(data, list) and len(data) > 0:
-                    if 'text' in data[0]: 
-                        for item in data:
+                        # Case B: Our Extension Export (my_prompts.json)
+                        elif 'text' in item:
                             text = item.get('text', '')
-                            if exclude_short and len(text) < 8: continue
+                            # Junk Filter
+                            if exclude_short and len(text) < 5: continue
+                            if re.match(r'^[\s\d\W]+$', text): continue
+                            
+                            # Strict Filter
+                            if strict_filter:
+                                if len(text) < 10: continue
+                                if any(w in text.lower() for w in ["test", "hello", "hi", "你好", "测试", "demo"]): continue
+                            
+                            if text.lower().strip() in ["hi", "hello", "test", "testing", "你好", "测试"]: continue
+                            
                             new_lines.append(text)
                             ts = item.get('ts', 0)
                             if ts > 0: new_timestamps.append(datetime.fromtimestamp(ts / 1000))
-                    elif 'mapping' in data[0]:
-                         for conv in data:
-                            if 'mapping' in conv:
-                                for k, v in conv['mapping'].items():
-                                    if v['message'] and v['message']['author']['role'] == 'user':
-                                        content = v['message'].get('content')
-                                        parts = content.get('parts') if isinstance(content, dict) else None
-                                        if parts and isinstance(parts[0], str): 
-                                            text = parts[0]
-                                            if exclude_short and len(text) < 8: continue
-                                            new_lines.append(text)
-                                            ct = v['message'].get('create_time')
-                                            if ct: new_timestamps.append(datetime.fromtimestamp(float(ct)))
+                            new_sources.append(item.get('src', 'unknown'))
+                    
+                except Exception as e:
+                    # Fallback to standard json load if ijson fails or for small files structure mismatch
+                    st.warning(f"Stream parsing failed, trying legacy load... ({str(e)})")
+                    up.seek(0)
+                    content = up.read().decode('utf-8', errors='ignore')
+                    data = json.loads(content)
+                    # ... (Original Logic for fallback) ...
+                    if isinstance(data, list) and len(data) > 0:
+                        if 'text' in data[0]: 
+                            for item in data:
+                                text = item.get('text', '')
+                                if exclude_short and len(text) < 8: continue
+                                new_lines.append(text)
+                                ts = item.get('ts', 0)
+                                if ts > 0: new_timestamps.append(datetime.fromtimestamp(ts / 1000))
+                        elif 'mapping' in data[0]:
+                             for conv in data:
+                                if 'mapping' in conv:
+                                    for k, v in conv['mapping'].items():
+                                        if v['message'] and v['message']['author']['role'] == 'user':
+                                            content = v['message'].get('content')
+                                            parts = content.get('parts') if isinstance(content, dict) else None
+                                            if parts and isinstance(parts[0], str): 
+                                                text = parts[0]
+                                                if exclude_short and len(text) < 8: continue
+                                                new_lines.append(text)
+                                                ct = v['message'].get('create_time')
+                                                if ct: new_timestamps.append(datetime.fromtimestamp(float(ct)))
 
-        if not new_lines: 
-             content = up.getvalue().decode('utf-8', errors='ignore') # Read only if not json or json failed
-             if up.name.endswith('.jsonl'):
-                for line in content.splitlines():
-                    if line.strip():
-                        try:
-                            msg = json.loads(line)
-                            if 'messages' in msg: new_lines.append(msg['messages'][0]['content'])
-                        except: pass
-             else:
-                new_lines = [l.strip() for l in content.split('===SPLIT===') if l.strip()]
-                if len(new_lines) < 2:
-                     new_lines = [l.strip() for l in content.splitlines() if l.strip()]
+            if not new_lines: 
+                 content = up.getvalue().decode('utf-8', errors='ignore') # Read only if not json or json failed
+                 if up.name.endswith('.jsonl'):
+                    for line in content.splitlines():
+                        if line.strip():
+                            try:
+                                msg = json.loads(line)
+                                if 'messages' in msg: new_lines.append(msg['messages'][0]['content'])
+                            except: pass
+                 else:
+                    new_lines = [l.strip() for l in content.split('===SPLIT===') if l.strip()]
+                    if len(new_lines) < 2:
+                         new_lines = [l.strip() for l in content.splitlines() if l.strip()]
 
-        if new_lines:
-            st.session_state.cached_data = {
-                'lines': new_lines,
-                'timestamps': new_timestamps,
-                'sources': new_sources
-            }
-            
-    except Exception as e:
-        st.error(t('upload_error').format(e))
+            if new_lines:
+                st.session_state.cached_data = {
+                    'lines': new_lines,
+                    'timestamps': new_timestamps,
+                    'sources': new_sources
+                }
+                
+        except Exception as e:
+            st.error(t('upload_error').format(e))
 
 if st.session_state.cached_data:
     lines = st.session_state.cached_data['lines']
@@ -962,9 +1003,10 @@ def luxury_chart(fig, title=None, show_median=False, df_col=None):
         margin=dict(l=20, r=20, t=80, b=40), # More top margin for big title
         hovermode="x unified",
         hoverlabel=dict(
-            bgcolor="rgba(20, 20, 30, 0.95)",
+            bgcolor="rgba(15, 23, 42, 0.95)", # Darker blue-black
             bordercolor="#D4AF37",
-            font=dict(color="white", size=14)
+            font=dict(color="#e2e8f0", size=14, family="Helvetica Neue"),
+            namelength=-1
         ),
         showlegend=True,
         legend=dict(
@@ -1799,7 +1841,7 @@ with tab_insight:
         
         # 2D Breakdown
         emo_df = pd.DataFrame({'Emotion': list(e_scores.keys()), 'Score': list(e_scores.values())})
-        emo_df = emo_df[emo_df['Score'] > 0].sort_values(by=['Score'], ascending=False) # type: ignore
+        emo_df = emo_df[emo_df['Score'] > 0].sort_values(by='Score', ascending=False) # type: ignore
         fig_emo_bar = px.bar(emo_df, x='Score', y='Emotion', orientation='h', template="plotly_dark", 
                              color='Score', color_continuous_scale='Spectral')
         # Add texture to 2D bar
@@ -1924,7 +1966,7 @@ with tab_insight:
             if st.button(f"{t('delete_btn')} ({len(to_delete)})", type="primary"):
                 # Perform deletion
                 # We need to find the original indices. Since df matches lines/timestamps lists by index
-                delete_indices = set(to_delete.index.tolist()) # type: ignore
+                delete_indices = set(pd.DataFrame(to_delete).index.tolist()) # type: ignore
                 
                 new_lines = []
                 new_timestamps = []

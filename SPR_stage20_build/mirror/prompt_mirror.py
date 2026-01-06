@@ -466,23 +466,56 @@ if st.query_params.get("page") == "privacy":
         
     st.stop() # Stop execution of the main app
 
-# --- 字体处理 (Mac 乱码终结版 - WordCloud用) ---
+# --- 字体处理 (Mac/Linux/Windows 乱码终结版 - WordCloud用) ---
 import platform
+import os
+
 def get_chinese_font():
+    # 优先根据系统推荐
     system = platform.system()
+    
+    # 定义常见中文字体路径库
+    font_candidates = []
+    
     if system == "Darwin": # Mac
-        fonts = [
-            "/System/Library/Fonts/Supplemental/Arial Unicode.ttf", # Best for WordCloud (TTF)
-            "/System/Library/Fonts/Hiragino Sans GB.ttc", # Second best
-            "/System/Library/Fonts/PingFang.ttc", 
+        font_candidates = [
+            "/System/Library/Fonts/Supplemental/Arial Unicode.ttf", # Best for WordCloud
+            "/System/Library/Fonts/STHeiti Medium.ttc", # Verified on some Macs
             "/System/Library/Fonts/STHeiti Light.ttc",
-            "/Library/Fonts/Arial Unicode.ttf"
+            "/System/Library/Fonts/Hiragino Sans GB.ttc",
+            "/System/Library/Fonts/PingFang.ttc",
+            "/Library/Fonts/Arial Unicode.ttf",
+            "/System/Library/Fonts/PingFangSC.ttc"
         ]
-        for f in fonts:
-            try: 
-                open(f)
-                return f
-            except: continue
+    elif system == "Windows":
+        font_candidates = [
+            "C:\\Windows\\Fonts\\msyh.ttc", # 微软雅黑
+            "C:\\Windows\\Fonts\\simhei.ttf", # 黑体
+            "C:\\Windows\\Fonts\\simkai.ttf", # 楷体
+        ]
+    elif system == "Linux":
+        font_candidates = [
+            "/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf",
+            "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
+            "/usr/share/fonts/truetype/arphic/uming.ttc",
+            "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"
+        ]
+        
+    # 通用 Fallback (如果系统检测失败，或特定系统字体不存在，尝试所有可能路径)
+    common_fonts = [
+        "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
+        "/System/Library/Fonts/STHeiti Medium.ttc",
+        "/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf",
+        "C:\\Windows\\Fonts\\msyh.ttc"
+    ]
+    
+    # 合并列表，优先系统特定
+    search_list = font_candidates + common_fonts
+    
+    for f in search_list:
+        if os.path.exists(f):
+            return f
+            
     return None 
 
 font_path = get_chinese_font()
@@ -1149,6 +1182,10 @@ with tab_insight:
     with col_cloud:
         st.subheader(t('cloud_header'))
         if words:
+            # Check font status
+            if not font_path:
+                 st.warning("⚠️ 中文字体未找到，词云可能显示乱码 (Chinese font not found)", icon="⚠️")
+
             # WordCloud with Luxury Colors
             def luxury_color_func(word, font_size, position, orientation, random_state=None, **kwargs):
                 return "hsl(46, 65%, 60%)" if random.randint(0, 1) else "hsl(245, 40%, 70%)"

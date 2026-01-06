@@ -311,6 +311,54 @@ chinese_stops = {
     "帮我写", "帮我看", "怎么写", "怎么做", "分析", "设计", "实现", "回复", "助手", "用户"
 }
 
+# Objectivity Filter Stopwords (Technial Noise + Conversational Filler + Pronouns)
+OBJECTIVITY_STOPWORDS = {
+    # 1. Technical / Boilerplate Noise
+    "json", "api", "html", "return", "self", "const", "string", "true", "false", "null", "undefined",
+    "class", "function", "var", "let", "import", "export", "from", "main", "void", "args", "kwargs",
+    "http", "https", "url", "uri", "request", "response", "header", "body", "params", "query",
+    "file", "path", "dir", "folder", "open", "close", "read", "write", "print", "log", "console",
+    "error", "exception", "try", "catch", "finally", "throw", "raise", "async", "await", "promise",
+    "list", "dict", "set", "tuple", "array", "object", "number", "boolean", "int", "float", "str",
+    "prompt", "data", "model", "code", "generate", "using", "use", "make", "create", "based", "text",
+    "input", "output", "context", "description", "detail", "analysis", "example", "following", "question",
+    "answer", "result", "content", "system", "message", "role", "user", "assistant", "ai", "bot", "gpt",
+    "openai", "chatgpt", "spec", "backend", "frontend", "server", "client", "app", "application", "project",
+    "key", "value", "name", "type", "id", "uuid", "token", "auth", "password", "email", "username",
+    "github", "git", "commit", "branch", "repo", "repository", "clone", "push", "pull", "merge",
+    "python", "javascript", "java", "c", "cpp", "go", "rust", "ruby", "php", "swift", "kotlin", "scala",
+    "humanizer", "agent", "core", "important", "background", "mode", "status", "year", "month", "day",
+    
+    # 2. Common Verbs / Adverbs / Filler
+    "know", "see", "want", "just", "now", "time", "first", "one", "two", "three", "new", "good", "great",
+    "well", "much", "many", "lot", "little", "big", "small", "way", "thing", "go", "get", "come", "take",
+    "give", "find", "say", "tell", "ask", "try", "look", "need", "like", "love", "hate", "think", "feel",
+    "believe", "hope", "wish", "maybe", "perhaps", "probably", "possibly", "sure", "certain", "really",
+    "very", "quite", "too", "so", "such", "more", "most", "less", "least", "better", "best", "worse",
+    "worst", "please", "thanks", "thank", "hello", "hi", "hey", "bye", "goodbye", "yes", "no", "ok", "okay",
+    "sure", "right", "correct", "wrong", "false", "true", "check", "verify", "test", "debug", "fix", "solve",
+    
+    # 3. Pronouns / Self-Referential
+    "i", "me", "my", "mine", "we", "us", "our", "ours", "you", "your", "yours", "he", "him", "his",
+    "she", "her", "hers", "it", "its", "they", "them", "their", "theirs", "self", "myself", "yourself",
+    "himself", "herself", "itself", "ourselves", "yourselves", "themselves",
+    
+    # 4. Chinese Noise (Technical + Conversational)
+    "自己", "我们", "他们", "你们", "它们", "咱们", "大家", "我", "你", "他", "她", "它",
+    "现在", "刚刚", "刚才", "以前", "以后", "之后", "之前", "时候", "时间", "问题", "东西", "事情", "情况",
+    "觉得", "认为", "感觉", "以为", "知道", "明白", "了解", "理解", "希望", "想要", "需要", "喜欢", "讨厌",
+    "真的", "非常", "很多", "许多", "一些", "有些", "这种", "那种", "这样", "那样", "这么", "那么",
+    "因为", "所以", "但是", "如果", "虽然", "或者", "还是", "以及", "除了", "为了", "关于", "对于",
+    "通过", "根据", "按照", "作为", "随着", "并且", "而且", "其实", "事实上", "实际上", "反而",
+    "也就是", "也就是说", "换句话说", "总之", "综上所述", "顺便", "另外", "此外", "还有",
+    "比如", "例如", "像是", "就像", "同样", "一般", "通常", "经常", "总是", "一直", "甚至", "尤其", "特别",
+    "可能", "已经", "可以", "能够", "应该", "必须", "不得不", "一定", "确定", "肯定",
+    "生成", "输出", "格式", "要求", "上下文", "步骤", "解释", "翻译", "代码", "文章", "内容",
+    "扮演", "角色", "助手", "回复", "建议", "意见", "想法", "看法", "观点", "结果", "原因", "理由", "目的", "目标",
+    "任务", "工作", "学习", "生活", "日", "月", "年", "个", "只", "次", "把", "被", "让", "给", "但",
+    "就", "见", "是", "的", "了", "在", "和", "有", "不", "人", "都", "一", "上", "也", "很", "到", "说", "要", "去"
+}
+
 # 页面配置
 st.set_page_config(page_title="SPR Mind Cockpit", layout="wide", page_icon="🧠")
 
@@ -1246,7 +1294,20 @@ with tab_insight:
 
     with col_cloud:
         st.subheader(t('cloud_header'))
-        if words:
+        
+        # --- Objectivity Filter UI ---
+        objectivity_mode = st.checkbox(
+            "🛡️ 开启客观性过滤 (Objectivity Mode)", 
+            value=False,
+            help="过滤常用词、代词和技术噪声 (如 json, api, 我, 你, time, just)，专注于核心概念。"
+        )
+        
+        # Apply Filter if enabled
+        display_words = words
+        if objectivity_mode:
+            display_words = [w for w in words if w.lower() not in OBJECTIVITY_STOPWORDS]
+            
+        if display_words:
             # Check font status
             if not font_path:
                  st.warning("⚠️ 未找到支持 CJK (中日韩) 的字体，词云可能显示乱码 (CJK font not found)", icon="⚠️")
@@ -1263,10 +1324,13 @@ with tab_insight:
             wc = WordCloud(font_path=font_path, width=800, height=500, 
                           background_color="rgba(0,0,0,0)", mode="RGBA", # Transparent
                           max_words=80, collocations=False,
-                          color_func=luxury_color_func).generate(" ".join(words))
+                          color_func=luxury_color_func).generate(" ".join(display_words))
             st.image(wc.to_array(), use_column_width=True)
         else:
-            st.warning(t('cloud_warning'))
+            if objectivity_mode and words:
+                st.warning("⚠️ 过滤后没有剩余词汇。请尝试关闭客观性过滤。")
+            else:
+                st.warning(t('cloud_warning'))
 
     st.subheader(t('dist_header'))
     c_len, c_comp = st.columns(2)

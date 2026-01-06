@@ -538,9 +538,35 @@ def get_supporting_font():
     # 合并列表，优先系统特定
     search_list = font_candidates + common_fonts
     
+    # 1. 精确匹配
     for f in search_list:
         if os.path.exists(f):
             return f
+
+    # 2. 暴力搜索 (Last Resort - Recursive Search)
+    # 如果系统标准路径都没找到，尝试在字体目录搜索关键词
+    if system == "Darwin":
+        search_dirs = ["/System/Library/Fonts", "/Library/Fonts"]
+        target_names = ["Arial Unicode", "PingFang", "Hiragino", "STHeiti", "Heiti"]
+    elif system == "Linux":
+        search_dirs = ["/usr/share/fonts", "/usr/local/share/fonts", "~/.fonts"]
+        target_names = ["NotoSansCJK", "WenQuanYi", "DroidSansFallback"]
+    elif system == "Windows":
+        search_dirs = ["C:\\Windows\\Fonts"]
+        target_names = ["msyh", "simhei", "simkai", "meiryo", "malgun"]
+    else:
+        search_dirs = []
+        target_names = []
+        
+    for d in search_dirs:
+        d = os.path.expanduser(d)
+        if not os.path.exists(d): continue
+        
+        for root, dirs, files in os.walk(d):
+            for file in files:
+                for target in target_names:
+                    if target.lower() in file.lower() and (file.endswith('.ttf') or file.endswith('.ttc') or file.endswith('.otf')):
+                        return os.path.join(root, file)
             
     return None 
 
@@ -944,6 +970,7 @@ if not lines:
 
 # --- 数据预处理 ---
 df = pd.DataFrame({"prompt": lines})
+df["prompt"] = df["prompt"].astype(str) # Ensure string type
 df["len"] = df["prompt"].str.len()
 
 if timestamps and len(timestamps) == len(lines):
@@ -1211,6 +1238,10 @@ with tab_insight:
             # Check font status
             if not font_path:
                  st.warning("⚠️ 未找到支持 CJK (中日韩) 的字体，词云可能显示乱码 (CJK font not found)", icon="⚠️")
+                 with st.expander("调试信息 (Debug Info)"):
+                     st.write(f"System: {platform.system()}")
+                     st.write("Checked Paths: Standard System Fonts (Arial Unicode, PingFang, Hiragino, etc.)")
+                     st.write("Deep Search: Recursive search in /System/Library/Fonts failed.")
 
             # WordCloud with Luxury Colors
             def luxury_color_func(word, font_size, position, orientation, random_state=None, **kwargs):

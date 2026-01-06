@@ -466,39 +466,65 @@ if st.query_params.get("page") == "privacy":
         
     st.stop() # Stop execution of the main app
 
-# --- 字体处理 (Mac/Linux/Windows 乱码终结版 - WordCloud用) ---
+# --- 字体处理 (Mac/Linux/Windows 国际化通用版 - WordCloud用) ---
 import platform
 import os
 
-def get_chinese_font():
+def get_supporting_font():
+    """
+    获取支持多语言（中日韩 CJK + Latin）的字体路径。
+    解决 WordCloud 默认字体不支持非 ASCII 字符导致的乱码问题。
+    """
     # 优先根据系统推荐
     system = platform.system()
     
-    # 定义常见中文字体路径库
+    # 定义常见字体路径库 (Priority: Universal -> CJK -> Specific)
     font_candidates = []
     
     if system == "Darwin": # Mac
         font_candidates = [
-            "/System/Library/Fonts/Supplemental/Arial Unicode.ttf", # Best for WordCloud
-            "/System/Library/Fonts/STHeiti Medium.ttc", # Verified on some Macs
-            "/System/Library/Fonts/STHeiti Light.ttc",
-            "/System/Library/Fonts/Hiragino Sans GB.ttc",
-            "/System/Library/Fonts/PingFang.ttc",
+            # Universal / Broad Support (Best for mixed content)
+            "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
             "/Library/Fonts/Arial Unicode.ttf",
-            "/System/Library/Fonts/PingFangSC.ttc"
+            
+            # Japanese (Hiragino is excellent on Mac)
+            "/System/Library/Fonts/Hiragino Sans.ttc",
+            "/System/Library/Fonts/Hiragino Sans GB.ttc",
+            
+            # Chinese (PingFang)
+            "/System/Library/Fonts/PingFang.ttc",
+            "/System/Library/Fonts/STHeiti Medium.ttc",
+            "/System/Library/Fonts/STHeiti Light.ttc",
+            
+            # Korean
+            "/System/Library/Fonts/AppleGothic.ttf",
         ]
     elif system == "Windows":
         font_candidates = [
-            "C:\\Windows\\Fonts\\msyh.ttc", # 微软雅黑
-            "C:\\Windows\\Fonts\\simhei.ttf", # 黑体
-            "C:\\Windows\\Fonts\\simkai.ttf", # 楷体
+            # Universal
+            "C:\\Windows\\Fonts\\Arial Unicode.ttf",
+            
+            # Chinese (Microsoft YaHei)
+            "C:\\Windows\\Fonts\\msyh.ttc",
+            "C:\\Windows\\Fonts\\simhei.ttf",
+            
+            # Japanese (Meiryo, Yu Gothic)
+            "C:\\Windows\\Fonts\\meiryo.ttc",
+            "C:\\Windows\\Fonts\\yugothr.ttc",
+            
+            # Korean (Malgun Gothic)
+            "C:\\Windows\\Fonts\\malgun.ttf",
         ]
     elif system == "Linux":
         font_candidates = [
+            # Noto Sans CJK (Standard for modern Linux)
+            "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+            
+            # Fallbacks
             "/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf",
             "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
-            "/usr/share/fonts/truetype/arphic/uming.ttc",
-            "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"
         ]
         
     # 通用 Fallback (如果系统检测失败，或特定系统字体不存在，尝试所有可能路径)
@@ -518,7 +544,7 @@ def get_chinese_font():
             
     return None 
 
-font_path = get_chinese_font()
+font_path = get_supporting_font()
 
 # --- Luxury CSS Injection ---
 luxury_css = """
@@ -1184,7 +1210,7 @@ with tab_insight:
         if words:
             # Check font status
             if not font_path:
-                 st.warning("⚠️ 中文字体未找到，词云可能显示乱码 (Chinese font not found)", icon="⚠️")
+                 st.warning("⚠️ 未找到支持 CJK (中日韩) 的字体，词云可能显示乱码 (CJK font not found)", icon="⚠️")
 
             # WordCloud with Luxury Colors
             def luxury_color_func(word, font_size, position, orientation, random_state=None, **kwargs):

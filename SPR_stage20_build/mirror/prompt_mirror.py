@@ -475,6 +475,18 @@ def get_supporting_font():
     获取支持多语言（中日韩 CJK + Latin）的字体路径。
     解决 WordCloud 默认字体不支持非 ASCII 字符导致的乱码问题。
     """
+    # 0. 优先使用项目内嵌字体 (Project Embedded Font) - 解决容器环境缺失字体问题
+    local_font_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fonts")
+    local_fonts = [
+        os.path.join(local_font_dir, "ZCOOLXiaoWei-Regular.ttf"), # Auto-downloaded
+        os.path.join(local_font_dir, "NotoSansSC-Regular.ttf"),
+        os.path.join(local_font_dir, "wqy-microhei.ttc")
+    ]
+    
+    for f in local_fonts:
+        if os.path.exists(f):
+            return f
+
     # 优先根据系统推荐
     system = platform.system()
     
@@ -1240,7 +1252,8 @@ with tab_insight:
                  st.warning("⚠️ 未找到支持 CJK (中日韩) 的字体，词云可能显示乱码 (CJK font not found)", icon="⚠️")
                  with st.expander("调试信息 (Debug Info)"):
                      st.write(f"System: {platform.system()}")
-                     st.write("Checked Paths: Standard System Fonts (Arial Unicode, PingFang, Hiragino, etc.)")
+                     st.write("Checked Local Path: mirror/fonts/ZCOOLXiaoWei-Regular.ttf (Not Found)")
+                     st.write("Checked System Paths: Standard System Fonts (Arial Unicode, PingFang, Hiragino, etc.)")
                      st.write("Deep Search: Recursive search in /System/Library/Fonts failed.")
 
             # WordCloud with Luxury Colors

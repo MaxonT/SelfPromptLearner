@@ -17,3 +17,5 @@ company/iterations/**/RUN_OUTPUT*.txt
 # OpenHands / build artifacts
 SPR_stage20_build/
 
+# OpenHands / build artifacts
+/SPR_stage20_build/

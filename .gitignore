@@ -1,4 +1,4 @@
-.DS_Store
+﻿.DS_Store
 .DS_Store
 
 # --- OpenHands Guardrails ---
@@ -12,3 +12,4 @@
 **/*token*
 **/*private_key*
 company/iterations/**/RUN_OUTPUT*.txt
+

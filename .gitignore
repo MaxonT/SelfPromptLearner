@@ -1,2 +1,14 @@
 .DS_Store
 .DS_Store
+
+# --- OpenHands Guardrails ---
+.openhands/
+**/.env
+**/.env.*
+**/*secret*
+**/*secrets*
+**/*apikey*
+**/*api_key*
+**/*token*
+**/*private_key*
+company/iterations/**/RUN_OUTPUT*.txt

@@ -1,0 +1,10 @@
+﻿{
+  "version": "1.0",
+  "max_files_per_iteration": 3,
+  "enforce_plan_for_code_changes": true,
+  "enforce_test_results_for_code_changes": true,
+  "enforce_security_review_for_code_changes": true,
+  "enforce_privacy_review_for_code_changes": true,
+  "high_risk_needs_founder_confirmation": true,
+  "allow_override_env_var": "OH_GUARDRAILS_OVERRIDE"
+}

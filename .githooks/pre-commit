@@ -1,0 +1,8 @@
+#!/bin/sh
+set -e
+
+if command -v pwsh >/dev/null 2>&1; then
+  pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/oh-guardrails.ps1 pre-commit
+else
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts/oh-guardrails.ps1 pre-commit
+fi

@@ -1,1 +1,5 @@
+# Line endings
 *.md text eol=lf
+.gitignore text eol=lf
+.gitattributes text eol=lf
+*.ps1 text eol=lf

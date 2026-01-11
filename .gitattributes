@@ -1,7 +1,1 @@
-# Keep hooks and shell scripts on LF (avoid sh^M issues)
-.githooks/* text eol=lf
-.openhands/*.sh text eol=lf
-*.sh text eol=lf
-
-# PowerShell scripts can stay CRLF (optional)
-*.ps1 text eol=crlf
+*.md text eol=lf

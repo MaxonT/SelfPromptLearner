@@ -5,3 +5,4 @@ matplotlib
 wordcloud
 plotly
 ijson
+requests  # For keep_alive.py (Streamlit uptime monitoring)

@@ -139,8 +139,11 @@ function initDefaults() {
 chrome.runtime.onInstalled.addListener(() => {
   initDefaults();
   ensureDeviceId();
-  chrome.alarms.create('sprSync', { periodInMinutes: 1 });
-  pushLog('info', 'SPR installed / defaults initialized');
+  // 强化 keep-alive: 每 30 秒 ping 一次，确保不会被云平台睡眠
+  chrome.alarms.create('sprSync', { periodInMinutes: 0.5 });
+  // 同时保留备用的心跳检测（更频繁）
+  chrome.alarms.create('sprKeepAlive', { periodInMinutes: 0.25 });
+  pushLog('info', 'SPR installed / defaults initialized (keep-alive: 30s, heartbeat: 15s)');
 });
 
 chrome.runtime.onStartup.addListener(() => {
@@ -151,6 +154,10 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm?.name === 'sprSync') {
     runSyncCycle('alarm');
     pollCommandsAndAct();
+    postStatusHeartbeat();
+  }
+  // 额外的 keep-alive 心跳（15秒一次，比同步更频繁）
+  if (alarm?.name === 'sprKeepAlive') {
     postStatusHeartbeat();
   }
 });

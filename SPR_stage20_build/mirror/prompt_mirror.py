@@ -14,6 +14,19 @@ import plotly.graph_objects as go
 import streamlit.components.v1 as components
 import textwrap
 
+# --- Keep-Alive Integration (防止 Streamlit 应用睡眠) ---
+try:
+    import sys
+    import os
+    # 添加父目录到路径以便导入 streamlit_keep_alive
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from streamlit_keep_alive import initialize_keep_alive
+    # 启动 Keep-Alive（每 30 秒心跳）
+    initialize_keep_alive(interval_seconds=30)
+except Exception as e:
+    # 如果 keep-alive 失败，不影响应用运行
+    print(f"⚠️  Keep-Alive 初始化失败: {e}")
+
 # --- Session State Management (Persistence) ---
 if 'lang' not in st.session_state:
     # Check query params for initial language

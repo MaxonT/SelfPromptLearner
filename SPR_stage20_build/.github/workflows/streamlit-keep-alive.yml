@@ -1,0 +1,84 @@
+name: Streamlit Keep-Alive
+
+on:
+  schedule:
+    # 每 3 分钟运行一次（确保 Streamlit 不会睡眠）
+    - cron: '*/3 * * * *'
+  workflow_dispatch:
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: pip install requests --quiet
+      
+      - name: Run Keep-Alive ping
+        env:
+          STREAMLIT_APP_URL: ${{ secrets.STREAMLIT_APP_URL }}
+          API_URL: ${{ secrets.API_URL }}
+          API_TOKEN: ${{ secrets.API_TOKEN }}
+        run: |
+          import os
+          import sys
+          import requests
+          from datetime import datetime
+          
+          url = os.getenv('STREAMLIT_APP_URL', '').strip()
+          if not url:
+              print('❌ STREAMLIT_APP_URL not set, skipping...')
+              sys.exit(0)
+          
+          # 确保 URL 有协议
+          if not url.startswith(('http://', 'https://')):
+              url = f'https://{url}'
+          
+          try:
+              print(f'⏱️  [{datetime.now().strftime("%H:%M:%S")}] Pinging {url}...')
+              response = requests.get(
+                  url,
+                  headers={'User-Agent': 'SPR-KeepAlive/GitHub-Actions'},
+                  timeout=15,
+                  allow_redirects=True
+              )
+              
+              if response.status_code == 200:
+                  print(f'✅ Ping successful! Status: {response.status_code}')
+                  # 也尝试后端 API heartbeat
+                  api_url = os.getenv('API_URL', '').strip()
+                  if api_url and os.getenv('API_TOKEN'):
+                      try:
+                          api_response = requests.post(
+                              f'{api_url.rstrip("/")}/api/extension/status',
+                              json={
+                                  'deviceId': 'github-actions-keep-alive',
+                                  'pending': 0,
+                                  'sending': 0,
+                                  'failed': 0,
+                              },
+                              headers={'Authorization': f'Bearer {os.getenv("API_TOKEN")}'},
+                              timeout=10
+                          )
+                          print(f'✅ Backend heartbeat: {api_response.status_code}')
+                      except Exception as e:
+                          print(f'⚠️  Backend heartbeat failed: {e}')
+              else:
+                  print(f'⚠️  Unexpected status: {response.status_code}')
+                  
+          except requests.exceptions.Timeout:
+              print(f'⏱️  Request timeout (expected for slow cloud apps)')
+          except requests.exceptions.RequestException as e:
+              print(f'❌ Request failed: {e}')
+              sys.exit(1)
+        shell: python
+      
+      - name: Log completion
+        run: echo "✅ Keep-Alive cycle completed at $(date -u '+%Y-%m-%d %H:%M:%S UTC')"

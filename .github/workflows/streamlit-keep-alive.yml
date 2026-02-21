@@ -1,0 +1,134 @@
+name: Streamlit Keep-Alive
+
+on:
+  schedule:
+    # 每 3 分钟运行一次（确保 Streamlit 不会睡眠）
+    - cron: '*/3 * * * *'
+  workflow_dispatch:
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: pip install requests --quiet
+      
+      - name: Run Keep-Alive ping
+        env:
+          STREAMLIT_APP_URL: ${{ secrets.STREAMLIT_APP_URL }}
+          API_URL: ${{ secrets.API_URL }}
+          API_TOKEN: ${{ secrets.API_TOKEN }}
+        run: |
+          import os
+          import sys
+          import requests
+          from datetime import datetime
+          
+          print('='*60)
+          print('🚀 Streamlit Keep-Alive 开始运行')
+          print(f'⏰ 时间: {datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")}')
+          print('='*60)
+          
+          url = os.getenv('STREAMLIT_APP_URL', '').strip()
+          if not url:
+              print('❌ 错误: STREAMLIT_APP_URL Secret 未设置!')
+              print('')
+              print('📝 请按以下步骤设置:')
+              print('1. 打开 GitHub 仓库页面')
+              print('2. Settings → Secrets and variables → Actions')
+              print('3. New repository secret')
+              print('4. Name: STREAMLIT_APP_URL')
+              print('5. Secret: https://你的应用名.streamlit.app')
+              print('')
+              print('⚠️  跳过此次运行...')
+              sys.exit(0)
+          
+          # 确保 URL 有协议
+          if not url.startswith(('http://', 'https://')):
+              url = f'https://{url}'
+          
+          print(f'📍 目标应用: {url}')
+          print('')
+          
+          try:
+              print(f'⏱️  正在 ping...')
+              response = requests.get(
+                  url,
+                  headers={
+                      'User-Agent': 'SPR-KeepAlive/GitHub-Actions',
+                      'Cache-Control': 'no-cache',
+                  },
+                  timeout=30,  # 增加超时时间到 30 秒
+                  allow_redirects=True
+              )
+              
+              print(f'📊 HTTP 状态码: {response.status_code}')
+              print(f'📏 响应大小: {len(response.content)} bytes')
+              
+              if response.status_code == 200:
+                  print('')
+                  print('✅ Ping 成功! Streamlit 应用保持活跃状态')
+                  print('')
+                  
+                  # 尝试后端 API heartbeat（可选）
+                  api_url = os.getenv('API_URL', '').strip()
+                  if api_url and os.getenv('API_TOKEN'):
+                      try:
+                          print('🔄 尝试发送后端心跳...')
+                          api_response = requests.post(
+                              f'{api_url.rstrip("/")}/api/extension/status',
+                              json={
+                                  'deviceId': 'github-actions-keep-alive',
+                                  'pending': 0,
+                                  'sending': 0,
+                                  'failed': 0,
+                              },
+                              headers={'Authorization': f'Bearer {os.getenv("API_TOKEN")}'},
+                              timeout=10
+                          )
+                          print(f'✅ 后端心跳成功: {api_response.status_code}')
+                      except Exception as e:
+                          print(f'⚠️  后端心跳失败 (不影响主要功能): {e}')
+              elif response.status_code in [301, 302, 307, 308]:
+                  print(f'↪️  重定向到: {response.headers.get("Location", "未知")}')
+                  print('✅ 应用响应正常（重定向）')
+              else:
+                  print(f'⚠️  意外的 HTTP 状态码: {response.status_code}')
+                  print('💡 应用可能正在启动或遇到问题，但请求已发送')
+                  
+          except requests.exceptions.Timeout:
+              print('⏱️  请求超时 (30秒)')
+              print('💡 这可能是因为:')
+              print('   - Streamlit 应用正在冷启动')
+              print('   - 应用响应较慢')
+              print('   - 网络问题')
+              print('')
+              print('⚠️  不算失败，下次会继续尝试')
+          except requests.exceptions.RequestException as e:
+              print(f'❌ 请求失败: {e}')
+              print('')
+              print('💡 可能的原因:')
+              print('   - STREAMLIT_APP_URL 设置不正确')
+              print('   - Streamlit 应用未运行')
+              print('   - 网络连接问题')
+              print('')
+              # 不要 exit(1)，因为临时网络问题不应该导致 workflow 失败
+              print('⚠️  标记为警告，继续监控...')
+              
+          print('')
+          print('='*60)
+          print('✅ Keep-Alive 周期完成')
+          print('⏰ 下次运行: 3 分钟后')
+          print('='*60)
+        shell: python
+      
+      - name: Log completion
+        run: echo "✅ Keep-Alive cycle completed at $(date -u '+%Y-%m-%d %H:%M:%S UTC')"

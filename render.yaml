@@ -15,7 +15,7 @@ services:
       - key: SESSION_SECRET
         generateValue: true
       - key: APP_ORIGIN
-        value: https://spr-fullstack.onrender.com
+        value: https://spr-fullstack-7fs6.onrender.com
       - key: LOG_LEVEL
         value: info
       - key: SENTRY_DSN
